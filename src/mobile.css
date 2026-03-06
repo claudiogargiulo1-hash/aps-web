@@ -1,0 +1,25 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { overflow-x: hidden; max-width: 100%; margin: 0; padding: 0; }
+
+/* Desktop: mostra top nav, nascondi mobile top e bottom nav */
+.desktop-links { display: flex !important; }
+.mobile-top { display: none !important; }
+.mobile-bottom-nav { display: none !important; position: fixed; bottom: 0; left: 0; right: 0; background: #1A5F7A; padding: 8px 0 20px; z-index: 100; box-shadow: 0 -2px 12px rgba(0,0,0,0.15); }
+.mobile-card-list { display: none; }
+.grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+
+@media (max-width: 768px) {
+  .desktop-links { display: none !important; }
+  .mobile-top { display: flex !important; }
+  .mobile-bottom-nav { display: flex !important; }
+  .mobile-card-list { display: block !important; }
+  .desktop-table-wrap { display: none !important; }
+  .grid-2col { grid-template-columns: 1fr !important; }
+  .kpi-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  table { display: none !important; }
+}
+
+.mobile-nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 4px 0; font-size: 9px; font-weight: 600; }
+.mobile-nav-btn.active { color: #fff; }
+.mobile-nav-btn .nav-icon { font-size: 22px; line-height: 1; }
