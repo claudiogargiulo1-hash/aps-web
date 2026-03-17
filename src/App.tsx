@@ -421,13 +421,14 @@ function PatientsPage() {
 
   const canAdd = ['medico', 'infermiere', 'admin'].includes(profile?.role);
   const canDelete = ['medico', 'admin'].includes(profile?.role);
+  const [showDischarged, setShowDischarged] = useState(false);
 
-  useEffect(() => { fetchPatients(); }, []);
+  useEffect(() => { fetchPatients(); }, [showDischarged]);
 
   const fetchPatients = async () => {
     const { data } = await supabase.from('patients')
       .select('*, nrs_measurements(nrs_value, measured_at)')
-      .eq('is_active', true).order('last_name');
+      .eq('is_active', !showDischarged).order('last_name');
     setPatients(data || []);
     setLoading(false);
   };
@@ -454,7 +455,11 @@ function PatientsPage() {
               placeholder="Cerca paziente..."
               style={{ ...inp, paddingLeft: 36, width: isMobile ? '100%' : 220, borderRadius: 20 }} />
           </div>
-          {canAdd && (
+          <button onClick={() => { setShowDischarged(d => !d); setLoading(true); }}
+            style={{ ...chip(!showDischarged), padding: '10px 16px', borderRadius: 10 }}>
+            {showDischarged ? '👤 Pazienti Attivi' : '🏠 Dimessi'}
+          </button>
+          {canAdd && !showDischarged && (
             <button onClick={() => navigate('/patients/new')} style={btn('primary')}>
               + Aggiungi
             </button>
