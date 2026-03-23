@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/aps-web/static/css/main.e6c13ad2.css",
-    "main.js": "/aps-web/static/js/main.ebf0c962.js",
+    "main.js": "/aps-web/static/js/main.e31ccbb7.js",
     "static/js/453.b46af7b7.chunk.js": "/aps-web/static/js/453.b46af7b7.chunk.js",
     "index.html": "/aps-web/index.html",
     "main.e6c13ad2.css.map": "/aps-web/static/css/main.e6c13ad2.css.map",
-    "main.ebf0c962.js.map": "/aps-web/static/js/main.ebf0c962.js.map",
+    "main.e31ccbb7.js.map": "/aps-web/static/js/main.e31ccbb7.js.map",
     "453.b46af7b7.chunk.js.map": "/aps-web/static/js/453.b46af7b7.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.ebf0c962.js"
+    "static/js/main.e31ccbb7.js"
   ]
 }
