@@ -119,6 +119,38 @@ Deno.test('golden-8: score exceeds 100 before cap → capped at 100', () => {
   assertEquals(r.score, 130.0);
 });
 
+// ── vocabulary aliases ────────────────────────────────────────────────────────
+
+Deno.test('alias: protesi_anca == THA (same pct)', () => {
+  const base = { opioids: 'none', nrsPreop: 0, pcsTotal: 0, passTotal: 0, csiTotal: 0, distressThermometer: 0, painOtherSites: false, insomniaPresent: false, smoking: false, frailty: false };
+  assertEquals(calcPreopRisk({ ...base, surgeryType: 'protesi_anca' }).pct, calcPreopRisk({ ...base, surgeryType: 'THA' }).pct);
+});
+
+Deno.test('alias: protesi_ginocchio == TKA (same pct)', () => {
+  const base = { opioids: 'none', nrsPreop: 3, pcsTotal: 20, passTotal: 25, csiTotal: 30, distressThermometer: 0, painOtherSites: false, insomniaPresent: false, smoking: false, frailty: false };
+  assertEquals(calcPreopRisk({ ...base, surgeryType: 'protesi_ginocchio' }).pct, calcPreopRisk({ ...base, surgeryType: 'TKA' }).pct);
+});
+
+Deno.test('alias: spinale == VERTEBRALE_FUSIONE (same pct)', () => {
+  const base = { opioids: 'intermittent', nrsPreop: 6, pcsTotal: 30, passTotal: 40, csiTotal: 50, distressThermometer: 0, painOtherSites: false, insomniaPresent: false, smoking: false, frailty: false };
+  assertEquals(calcPreopRisk({ ...base, surgeryType: 'spinale' }).pct, calcPreopRisk({ ...base, surgeryType: 'VERTEBRALE_FUSIONE' }).pct);
+});
+
+Deno.test('alias: opioids cronico == chronic (same pct)', () => {
+  const base = { surgeryType: 'THA', nrsPreop: 5, pcsTotal: 20, passTotal: 30, csiTotal: 40, distressThermometer: 0, painOtherSites: false, insomniaPresent: false, smoking: false, frailty: false };
+  assertEquals(calcPreopRisk({ ...base, opioids: 'cronico' }).pct, calcPreopRisk({ ...base, opioids: 'chronic' }).pct);
+});
+
+Deno.test('alias: opioids intermittente == intermittent (same pct)', () => {
+  const base = { surgeryType: 'TKA', nrsPreop: 4, pcsTotal: 15, passTotal: 20, csiTotal: 25, distressThermometer: 0, painOtherSites: false, insomniaPresent: false, smoking: false, frailty: false };
+  assertEquals(calcPreopRisk({ ...base, opioids: 'intermittente' }).pct, calcPreopRisk({ ...base, opioids: 'intermittent' }).pct);
+});
+
+Deno.test('alias: unknown surgery falls back to ALTRO weight (1.5)', () => {
+  const base = { opioids: 'none', nrsPreop: 0, pcsTotal: 0, passTotal: 0, csiTotal: 0, distressThermometer: 0, painOtherSites: false, insomniaPresent: false, smoking: false, frailty: false };
+  assertEquals(calcPreopRisk({ ...base, surgeryType: 'xyz_unknown' }).pct, calcPreopRisk({ ...base, surgeryType: 'ALTRO' }).pct);
+});
+
 // ── calcTrajectory ────────────────────────────────────────────────────────────
 
 Deno.test('calcTrajectory: improving (delta <= -3)', () => {

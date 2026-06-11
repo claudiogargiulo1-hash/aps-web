@@ -1,9 +1,14 @@
 export const ENGINE_VERSION = '2026.06.0';
 
 export const SURGERY_RISK_MAP: Record<string, number> = {
+  // iOS / canonical keys
   THA: 2, TKA: 2.5, ARTR_GINOCCHIO: 1.2, ARTR_SPALLA: 1.3, PROTESI_SPALLA: 2,
   FRATTURA_INF: 2.2, FRATTURA_SUP: 1.8, VERTEBRALE_FUSIONE: 3,
   VERTEBRALE_DECOMPRESSIONE: 2.2, ALTRO: 1.5,
+  // web vocabulary aliases
+  artroscopia: 1.2, colecistectomia: 1.3, ernioplastica: 1.5, cesareo: 1.5,
+  colorettale: 1.8, protesi_anca: 2.0, mammaria: 2.0, frattura_arto: 2.2,
+  vascolare: 2.2, protesi_ginocchio: 2.5, spinale: 3.0, toracotomia: 3.0,
 };
 
 export function riskLevel(pct: number): 'basso' | 'moderato' | 'alto' | 'molto_alto' {
@@ -26,7 +31,8 @@ export function calcPreopRisk(p: {
   const surgeryRisk = SURGERY_RISK_MAP[p.surgeryType] ?? 1.5;
   const surgeryScore = surgeryRisk * 10;
   const painScore = p.nrsPreop <= 3 ? p.nrsPreop * 1 : p.nrsPreop <= 6 ? p.nrsPreop * 1.5 : p.nrsPreop * 2;
-  const opioidScore = p.opioids === 'chronic' ? 30 : p.opioids === 'intermittent' ? 15 : 0;
+  const opioidNorm = p.opioids === 'cronico' ? 'chronic' : p.opioids === 'intermittente' ? 'intermittent' : p.opioids;
+  const opioidScore = opioidNorm === 'chronic' ? 30 : opioidNorm === 'intermittent' ? 15 : 0;
   const rawScore = surgeryScore + painScore + opioidScore
     + (p.pcsTotal / 52) * 20 + (p.passTotal / 80) * 15 + (p.csiTotal / 100) * 15;
   let pct = Math.min(100, Math.round((rawScore / 130) * 100));
