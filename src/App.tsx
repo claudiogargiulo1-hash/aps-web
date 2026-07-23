@@ -98,21 +98,14 @@ function AuthProvider({ children }: any) {
 const getNrsColor = (v: number) => v <= 3 ? T.success : v <= 6 ? T.warning : T.danger;
 const getNrsBg   = (v: number) => v <= 3 ? T.successLight : v <= 6 ? T.warningLight : T.dangerLight;
 
-/** ISO → GG/MM/AAAA (display only) */
-const formatDateEU = (iso: string) => {
-  if (!iso || iso.length < 10) return iso;
-  const [y, m, d] = iso.split('-');
-  if (!y || !m || !d) return iso;
-  return `${d}/${m}/${y}`;
-};
-/** GG/MM/AAAA → YYYY-MM-DD (storage) */
-const parseEUDate = (eu: string) => {
-  if (!eu) return '';
-  const parts = eu.split('/');
-  if (parts.length !== 3) return eu;
-  const [d, m, y] = parts;
-  if (!d || !m || !y) return eu;
-  return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+/** ISO (YYYY-MM-DD) → dd/MM/yyyy per visualizzazione. Usa parseISO per evitare shift di fuso orario. */
+const formatDateDisplay = (iso: string) => {
+  if (!iso) return '—';
+  try {
+    return format(parseISO(iso), 'dd/MM/yyyy');
+  } catch {
+    return iso;
+  }
 };
 
 const roleColor: Record<string, string> = {
@@ -4041,13 +4034,13 @@ function PatientDetailPage() {
             <h3 style={{ margin: '0 0 12px', color: T.text, fontSize: 15, fontWeight: 700 }}>👤 Dati Paziente</h3>
             {[
               ['Nome', patient.first_name + ' ' + patient.last_name],
-              ['Data di nascita', patient.date_of_birth],
+              ['Data di nascita', formatDateDisplay(patient.date_of_birth)],
               ['Codice Fiscale', patient.fiscal_code || '—'],
               ['Sesso', patient.gender || '—'],
               ['N° Ricovero', patient.admission_number],
               ['Reparto', patient.ward],
               ['Letto', patient.bed || '—'],
-              ['Data ricovero', patient.admission_date],
+              ['Data ricovero', formatDateDisplay(patient.admission_date)],
               ['Peso', patient.weight_kg ? patient.weight_kg + ' kg' : '—'],
               ['Altezza', patient.height_cm ? patient.height_cm + ' cm' : '—'],
               ['Classe ASA', patient.asa_class ? 'ASA ' + patient.asa_class : '—'],
@@ -4310,20 +4303,9 @@ function PatientFormPage() {
           ))}
           <Field label="Data di nascita *">
             <input
-              type="text"
-              inputMode="numeric"
-              placeholder="GG/MM/AAAA"
-              maxLength={10}
-              value={formatDateEU(form.date_of_birth)}
-              onChange={e => {
-                let v = e.target.value.replace(/[^0-9/]/g, '');
-                // Auto-inserisce / dopo GG e dopo MM durante la digitazione
-                if (v.length === 2 && !v.includes('/')) v += '/';
-                else if (v.length === 5 && (v.match(/\//g) || []).length < 2) v += '/';
-                // Salva in ISO se completo (GG/MM/AAAA → YYYY-MM-DD), altrimenti salva testo grezzo
-                const iso = parseEUDate(v);
-                handleChange('date_of_birth', /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : v);
-              }}
+              type="date"
+              value={form.date_of_birth}
+              onChange={e => handleChange('date_of_birth', e.target.value)}
               style={inp}
             />
           </Field>
@@ -4340,11 +4322,14 @@ function PatientFormPage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Section title="🏥 Ricovero">
-            {([[form.patient_status === 'ricoverato' ? 'N° Ricovero *' : 'N° Ricovero (opzionale)', 'admission_number'], ['Letto', 'bed'], ['Data ricovero (YYYY-MM-DD)', 'admission_date']] as [string,string][]).map(([label, key]) => (
+            {([[form.patient_status === 'ricoverato' ? 'N° Ricovero *' : 'N° Ricovero (opzionale)', 'admission_number'], ['Letto', 'bed']] as [string,string][]).map(([label, key]) => (
               <Field key={key} label={label}>
                 <input value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={inp} />
               </Field>
             ))}
+            <Field label="Data ricovero">
+              <input type="date" value={form.admission_date} onChange={e => setForm(f => ({ ...f, admission_date: e.target.value }))} style={inp} />
+            </Field>
             <Field label="Reparto *">
               <select value={form.ward} onChange={e => setForm(f => ({ ...f, ward: e.target.value }))} style={inp}>
                 <option value="">— Seleziona reparto —</option>
