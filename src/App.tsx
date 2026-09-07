@@ -255,6 +255,7 @@ function Layout({ children }: any) {
     ...(profile?.role === 'admin' ? [
       { path: '/export', icon: '⬇', label: 'Export' },
       { path: '/users', icon: '✦', label: 'Utenti' },
+      { path: '/audit', icon: '📜', label: 'Cronologia' },
       { path: '/settings', icon: '⚙', label: 'Impostazioni' },
     ] : []),
   ];
@@ -3494,7 +3495,7 @@ function PatientDetailPage() {
   const [patient, setPatient] = useState<any>(null);
   const [interventions, setInterventions] = useState<any[]>([]);
   const [measurements, setMeasurements] = useState<any[]>([]);
-  const [tab, setTab] = useState<'nrs'|'info'|'interventions'|'cpsp'>('nrs');
+  const [tab, setTab] = useState<'nrs'|'info'|'interventions'|'cpsp'|'audit'>('nrs');
   const [nrsValue, setNrsValue] = useState<number|null>(null);
   const [nrsMovement, setNrsMovement] = useState<number>(0);
   const [therapy, setTherapy] = useState('');
@@ -3684,7 +3685,7 @@ function PatientDetailPage() {
 
   if (!patient) return <div style={{ textAlign: 'center', padding: 60, color: T.textMuted }}>Caricamento...</div>;
 
-  const tabs = [['nrs', '📊 NRS'], ['info', '👤 Info'], ['interventions', '🔧 Interventi'], ['cpsp', '🧠 CPSP']];
+  const tabs = [['nrs', '📊 NRS'], ['info', '👤 Info'], ['interventions', '🔧 Interventi'], ['cpsp', '🧠 CPSP'], ...(profile?.role === 'admin' ? [['audit', '📜 Cronologia']] : [])];
 
   // Scheduled NRS slots from last intervention end time, or default daily slots
   const lastEndTimeStr = interventions[0]?.intervention_end_time;
@@ -4112,6 +4113,9 @@ function PatientDetailPage() {
 
       {/* CPSP Tab */}
       {tab === 'cpsp' && <CPSPTab patientId={id!} profile={profile} patient={patient} />}
+
+      {/* Audit Tab (solo admin) */}
+      {tab === 'audit' && profile?.role === 'admin' && <AuditTab patientId={id!} />}
     </div>
   );
 }
@@ -5592,7 +5596,159 @@ const getNowStr = () => {
   return now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes());
 };
 
+// ============================================================
+// AUDIT LOG (Cronologia modifiche) — solo admin
+// ============================================================
+const AUDIT_TABLE_LABELS: Record<string, string> = {
+  patients: '👤 Paziente',
+  interventions: '🔧 Intervento',
+  cpsp_assessments: '🧠 Valutazione CPSP',
+  cpsp_followups: '🧠 Follow-up CPSP',
+  nrs_measurements: '📊 Rilevazione NRS',
+  wards: '🏥 Reparto',
+  opioid_records: '💊 Somministrazione oppioidi',
+  opioid_prescriptions: '💊 Prescrizione oppioidi',
+  opioid_discharge_plans: '💊 Piano dimissione oppioidi',
+  profiles: '✦ Utente',
+  registration_requests: '✦ Richiesta di accesso',
+};
+
+const AUDIT_ACTION_STYLE: Record<string, { label: string; color: string; bg: string }> = {
+  INSERT: { label: 'Creazione', color: '#16A34A', bg: '#DCFCE7' },
+  UPDATE: { label: 'Modifica', color: '#0369A1', bg: '#E0F2FE' },
+  DELETE: { label: 'Eliminazione', color: T.danger, bg: T.dangerLight },
+};
+
+async function fetchAuditEntries(opts: { patientId?: string; tableName?: string; limit?: number }) {
+  let query = supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(opts.limit || 100);
+  if (opts.patientId) query = query.eq('patient_id', opts.patientId);
+  if (opts.tableName) query = query.eq('table_name', opts.tableName);
+  const { data, error } = await query;
+  if (error || !data) return [];
+  const userIds = Array.from(new Set(data.map((r: any) => r.user_id).filter(Boolean)));
+  let usersMap: Record<string, any> = {};
+  if (userIds.length) {
+    const { data: users } = await supabase.from('profiles').select('id, first_name, last_name, role').in('id', userIds);
+    usersMap = Object.fromEntries((users || []).map((u: any) => [u.id, u]));
+  }
+  return data.map((r: any) => ({ ...r, _user: usersMap[r.user_id] || null }));
+}
+
+/** Confronta old/new e restituisce solo i campi effettivamente cambiati. */
+function diffAuditValues(oldV: any, newV: any): [string, any, any][] {
+  const skip = ['id', 'created_at', 'updated_at'];
+  if (!oldV && newV) return Object.entries(newV).filter(([k]) => !skip.includes(k)).map(([k, v]) => [k, undefined, v]);
+  if (oldV && !newV) return Object.entries(oldV).filter(([k]) => !skip.includes(k)).map(([k, v]) => [k, v, undefined]);
+  if (!oldV || !newV) return [];
+  const keys = Array.from(new Set([...Object.keys(oldV), ...Object.keys(newV)]));
+  const changed: [string, any, any][] = [];
+  keys.forEach(k => {
+    if (skip.includes(k)) return;
+    const a = oldV[k], b = newV[k];
+    if (JSON.stringify(a) !== JSON.stringify(b)) changed.push([k, a, b]);
+  });
+  return changed;
+}
+
+function AuditEntryRow({ entry }: { entry: any }) {
+  const [open, setOpen] = useState(false);
+  const style = AUDIT_ACTION_STYLE[entry.action] || { label: entry.action, color: T.textMuted, bg: T.bg };
+  const who = entry._user ? `${entry._user.first_name} ${entry._user.last_name}` : (entry.user_id ? 'Utente eliminato' : 'Sistema');
+  const changed = entry.action === 'UPDATE' ? diffAuditValues(entry.old_values, entry.new_values)
+    : entry.action === 'INSERT' ? diffAuditValues(null, entry.new_values)
+    : diffAuditValues(entry.old_values, null);
+
+  return (
+    <div style={{ borderBottom: `1px solid ${T.border}`, padding: '12px 0' }}>
+      <div onClick={() => changed.length && setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: changed.length ? 'pointer' : 'default', flexWrap: 'wrap' as const }}>
+        <span style={{ backgroundColor: style.bg, color: style.color, borderRadius: 8, padding: '3px 10px', fontWeight: 700, fontSize: 11 }}>{style.label}</span>
+        <span style={{ fontWeight: 600, fontSize: 13, color: T.text }}>{AUDIT_TABLE_LABELS[entry.table_name] || entry.table_name}</span>
+        <span style={{ fontSize: 13, color: T.textMuted }}>— {who}{entry._user?.role ? ` (${entry._user.role})` : ''}</span>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: T.textLight }}>{formatDistanceToNow(parseISO(entry.created_at), { addSuffix: true, locale: it })}</span>
+        {changed.length > 0 && <span style={{ fontSize: 12, color: T.textLight }}>{open ? '▲' : '▼'}</span>}
+      </div>
+      {open && changed.length > 0 && (
+        <div style={{ marginTop: 8, backgroundColor: T.bg, borderRadius: 10, padding: 10, fontSize: 12 }}>
+          {changed.map(([k, a, b]) => (
+            <div key={k} style={{ display: 'flex', gap: 8, padding: '3px 0', borderBottom: `1px dashed ${T.border}` }}>
+              <span style={{ color: T.textMuted, minWidth: 140, fontWeight: 600, flexShrink: 0 }}>{k}</span>
+              {entry.action === 'UPDATE' ? (
+                <span style={{ color: T.text, wordBreak: 'break-word' as const }}><span style={{ color: T.danger, textDecoration: 'line-through' }}>{String(a ?? '—')}</span> {'→'} <span style={{ color: '#16A34A' }}>{String(b ?? '—')}</span></span>
+              ) : (
+                <span style={{ color: T.text, wordBreak: 'break-word' as const }}>{String((a ?? b) ?? '—')}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AuditTab({ patientId }: { patientId: string }) {
+  const [entries, setEntries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAuditEntries({ patientId, limit: 200 }).then(e => { setEntries(e); setLoading(false); });
+  }, [patientId]);
+
+  return (
+    <div style={card}>
+      <h2 style={{ margin: '0 0 4px', fontSize: 15, color: T.text, fontWeight: 700 }}>📜 Cronologia modifiche</h2>
+      <p style={{ margin: '0 0 16px', fontSize: 12, color: T.textMuted }}>Visibile solo agli amministratori. Tutte le modifiche registrate per questo paziente.</p>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '30px 0', color: T.textMuted }}>Caricamento…</div>
+      ) : entries.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '30px 0', color: T.textMuted }}>Nessuna modifica registrata</div>
+      ) : entries.map(e => <AuditEntryRow key={e.id} entry={e} />)}
+    </div>
+  );
+}
+
+function AuditLogPage() {
+  const { profile } = useAuth();
+  const isMobile = useIsMobile();
+  const [entries, setEntries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tableFilter, setTableFilter] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const data = await fetchAuditEntries({ tableName: tableFilter || undefined, limit: 300 });
+    setEntries(data);
+    setLoading(false);
+  }, [tableFilter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (profile?.role !== 'admin') return <Navigate to="/" />;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap' as const, justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 24, color: T.text, fontWeight: 800 }}>Cronologia modifiche</h1>
+          <p style={{ margin: '4px 0 0', fontSize: 12, color: T.textMuted }}>Chi ha creato, modificato o eliminato dati — visibile solo agli admin</p>
+        </div>
+        <select value={tableFilter} onChange={e => setTableFilter(e.target.value)} style={{ ...inp, width: 'auto' }}>
+          <option value="">Tutte le tabelle</option>
+          {Object.entries(AUDIT_TABLE_LABELS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+        </select>
+      </div>
+      <div style={card}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '30px 0', color: T.textMuted }}>Caricamento…</div>
+        ) : entries.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '30px 0', color: T.textMuted }}>Nessuna modifica registrata</div>
+        ) : entries.map(e => <AuditEntryRow key={e.id} entry={e} />)}
+      </div>
+    </div>
+  );
+}
+
 function InterventionFormPage() {
+
   const { id, interventionId } = useParams();
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -6977,6 +7133,7 @@ function AppRoutes() {
         <Route path="/export" element={<ExportPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/audit" element={<AuditLogPage />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Layout>
