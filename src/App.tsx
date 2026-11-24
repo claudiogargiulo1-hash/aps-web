@@ -1201,7 +1201,7 @@ const PB_SPINE: ProspectBundle = {
     'Oppioidi solo come rescue',
   ],
   notRec: ['Gabapentinoidi', 'Metadone EV', 'ESP block, TLIP block', 'Oppioidi intratecali', 'Infiltrazione della ferita', 'Desametasone / glucocorticoidi EV', 'Lidocaina, dexmedetomidina, magnesio EV'],
-  note: 'ESP block: non raccomandato nel 2020 per evidenza procedura-specifica limitata; non esiste ancora un aggiornamento PROSPECT che includa gli studi successivi.',
+  note: 'Morfina intratecale ed ESP block: non raccomandati da PROSPECT 2020 per evidenza procedura-specifica limitata. La morfina intratecale è invece raccomandata dall\'ERAS Society 2021 per la fusione lombare (evidenza alta, raccomandazione forte, dose non definita — Debono et al., Spine J 2021). Non esiste ancora un aggiornamento PROSPECT che includa gli studi successivi.',
   source: 'PROSPECT chirurgia spinale complessa — Waelkens et al., Eur J Anaesthesiol 2021',
 };
 const PB_LAMINECTOMY: ProspectBundle = {
