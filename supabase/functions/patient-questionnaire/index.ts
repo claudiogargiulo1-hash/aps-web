@@ -66,7 +66,9 @@ Deno.serve(async(req:Request)=>{
       if(passAnswers){updates.pass_answers=passAnswers.slice(0,20);updates.pass_score=passTotal;}
       if(csiAnswers){updates.csi_answers=csiAnswers.slice(0,25);updates.csi_score=csiTotal;}
       if(riskData){updates.cpsp_risk_pct=riskData.pct;updates.cpsp_risk_level=riskData.level;updates.engine_version=ENGINE_VERSION;}
-      await supabase.from('cpsp_assessments').update(updates).eq('id',qt.assessment_id);
+      const {error:updErr}=await supabase.from('cpsp_assessments').update(updates).eq('id',qt.assessment_id);
+      // Non segnare il questionario come completato se le risposte non sono state salvate
+      if(updErr){console.log('UPDATE ERROR:',updErr.message);return new Response(JSON.stringify({error:'Errore nel salvataggio, riprova tra poco.'}),{status:500,headers:corsHeaders});}
       await supabase.from('patient_questionnaire_tokens').update({status:'completed',completed_at:new Date().toISOString()}).eq('token',token);
       return new Response(JSON.stringify({success:true,message:'Questionario completato! I tuoi dati sono stati inviati al medico.',scores:{pcs:pcsTotal,pass:passTotal,csi:csiTotal},risk:riskData}),{headers:{...corsHeaders,'Content-Type':'application/json'}});
     }
