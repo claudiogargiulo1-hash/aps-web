@@ -4281,6 +4281,11 @@ function NotificationsPage() {
 // ============================================================
 // PATIENT FORM
 // ============================================================
+// Nome/cognome uniformi: iniziale maiuscola (anche dopo spazio, trattino, apostrofo), resto minuscolo
+function formatPersonName(t: string): string {
+  return t.trim().replace(/\s+/g, ' ').toLowerCase().replace(/(^|[\s'’-])(\p{L})/gu, (_, sep, ch) => sep + ch.toUpperCase());
+}
+
 function PatientFormPage() {
   const { id } = useParams();
   const { profile } = useAuth();
@@ -4335,7 +4340,7 @@ function PatientFormPage() {
     setSaving(true);
     const tenantId = localStorage.getItem('tenant_id') ?? '00000000-0000-0000-0000-000000000001';
     const payload: any = {
-      first_name: form.first_name.trim(), last_name: form.last_name.trim(),
+      first_name: formatPersonName(form.first_name), last_name: formatPersonName(form.last_name),
       date_of_birth: form.date_of_birth, fiscal_code: form.fiscal_code || null,
       gender: form.gender, admission_number: form.admission_number || null,
       ward: form.ward, bed: form.bed || null, admission_date: form.admission_date,
