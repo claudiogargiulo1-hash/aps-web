@@ -1383,8 +1383,9 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
   const [podEditOpioidName, setPodEditOpioidName] = useState('');
   const [podEditSaving, setPodEditSaving] = useState(false);
 
-  const generateQr = async () => {
-    if (!currentAssessmentId) {
+  const generateQr = async (assessmentIdArg?: string) => {
+    const aId = assessmentIdArg || currentAssessmentId;
+    if (!aId) {
       alert('Salva prima la valutazione preoperatoria prima di generare il QR.');
       return;
     }
@@ -1393,7 +1394,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
     const { data, error } = await supabase
       .from('patient_questionnaire_tokens')
       .insert({
-        assessment_id: currentAssessmentId,
+        assessment_id: aId,
         patient_id: patientId,
         tenant_id: tenantId,
         scales: ['pcs', 'pass', 'csi'],
@@ -1783,8 +1784,8 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
   const computedSex = patient?.gender || null;
   const hasBioData = computedBmi !== null;
 
-  const saveAssessment = async () => {
-    if (!surgType) return alert('Seleziona il tipo di intervento');
+  const saveAssessment = async (withQr = false) => {
+    if (!surgType) { setFormTab('info'); return alert('Seleziona il tipo di intervento (Dati base)'); }
     setSaving(true);
     setRiskRetryPayload(null);
     const riskPayload = {
@@ -1834,6 +1835,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
       setRiskRetryPayload({ assessmentId: savedId, ...riskPayload });
     }
     await loadData(); setView('list'); setSaving(false); resetAssessmentForm();
+    if (withQr && savedId) await generateQr(savedId);
   };
 
   const bpiAvg = bpiScores.reduce((a, b) => a + b, 0) / 7;
@@ -1982,7 +1984,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
   const NRSRow = NRSSlider;
 
   if (view === 'assessment_form') {
-    const intraopFromIntervention = autoPopulatedFromIntervention && !editingAssessmentId;
+    const intraopFromIntervention = !editingAssessmentId;
     const fTabs = [
       { key: 'info', label: '1 · Dati base' },
       { key: 'screening', label: '2 · Screening' },
@@ -2242,9 +2244,16 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
         )}
         {formTab === 'questionari' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {intraopFromIntervention && (
-            <div style={{ backgroundColor: '#F3F4F6', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#6B7280' }}>
-              ℹ️ Dati intraoperatori presi dall'intervento registrato ({surgeryDurationMinutes ? surgeryDurationMinutes + ' min' : 'durata n.d.'}{regionalAnesthesia ? ' · ' + (regionalAnesthesiaType || 'anestesia regionale') : ''})
+          {!editingAssessmentId && (
+            <div style={{ backgroundColor: '#F5F3FF', border: '1.5px solid #C4B5FD', borderRadius: 12, padding: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#6D28D9', marginBottom: 4 }}>📱 Il paziente compila da solo?</div>
+              <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 10, lineHeight: 1.45 }}>
+                Salva la valutazione e genera il QR: il paziente compila PCS, PASS e CSI dal suo telefono e il rischio si aggiorna in automatico. Altrimenti compila qui sotto.
+              </div>
+              <button onClick={() => saveAssessment(true)} disabled={saving}
+                style={{ ...btn('primary', 'md'), width: '100%', justifyContent: 'center', backgroundColor: '#7C3AED' }}>
+                {saving ? 'Salvataggio...' : '💾 Salva e genera QR questionari'}
+              </button>
             </div>
           )}
           <div>
@@ -2279,7 +2288,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
             Avanti: {nextTab.label.replace(/^\d+ · /, '')} →
           </button>
         )}
-        <button onClick={saveAssessment} disabled={saving}
+        <button onClick={() => saveAssessment()} disabled={saving}
           style={{ ...btn('primary', 'md'), width: '100%', justifyContent: 'center', marginTop: nextTab ? 8 : 20 }}>
           {saving ? 'Salvataggio...' : editingAssessmentId ? '💾 Aggiorna Valutazione' : '💾 Salva Valutazione'}
         </button>
@@ -2696,7 +2705,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.text }}>🔍 Valutazione Preoperatoria</h3>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {currentAssessmentId
-              ? <button onClick={generateQr} disabled={qrLoading} style={{ ...btn('ghost', 'sm'), borderColor: '#7C3AED', color: '#7C3AED' }}>
+              ? <button onClick={() => generateQr()} disabled={qrLoading} style={{ ...btn('ghost', 'sm'), borderColor: '#7C3AED', color: '#7C3AED' }}>
                   {qrLoading ? '⏳' : '📱 QR Paziente'}
                 </button>
               : <span style={{ fontSize: 12, color: '#9CA3AF', fontStyle: 'italic' }}>💾 Salva prima la valutazione per generare il QR</span>
@@ -2836,6 +2845,42 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
       </div>
 
       </>)}
+      {/* Dati intraoperatori CPSP (fase Ricovero) */}
+      {phase === 'ric' && assessments[0] && (() => {
+        const a = assessments[0];
+        const importFromIntervention = async () => {
+          const { data: iv } = await supabase.from('interventions').select('*').eq('patient_id', patientId)
+            .order('created_at', { ascending: false }).limit(1).maybeSingle();
+          if (!iv) { alert('Nessun intervento registrato: aggiungilo prima nella sezione Intervento.'); return; }
+          const regional = ['epidurale', 'locoregionale', 'spinale'].includes(iv.anesthesia_type) || !!(iv.regional_blocks && iv.regional_blocks.trim());
+          const upd: any = {
+            surgery_duration_minutes: iv.duration_minutes ?? a.surgery_duration_minutes ?? null,
+            regional_anesthesia: regional,
+            regional_anesthesia_type: regional ? (iv.regional_blocks?.trim() || a.regional_anesthesia_type || null) : null,
+          };
+          const { error } = await cpspSvc.saveAssessment(supabase, upd, a.id);
+          if (error) { alert('Errore: ' + error.message); return; }
+          await loadData();
+        };
+        const filled = a.surgery_duration_minutes != null || a.regional_anesthesia;
+        return (
+          <div style={card}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>🔧 Dati intraoperatori (CPSP)</div>
+                <div style={{ fontSize: 12, color: filled ? T.text : T.textMuted, marginTop: 4 }}>
+                  {filled
+                    ? `${a.surgery_duration_minutes != null ? a.surgery_duration_minutes + ' min' : 'Durata n.d.'} · ${a.regional_anesthesia ? 'Regionale' + (a.regional_anesthesia_type ? ': ' + a.regional_anesthesia_type : '') : 'No regionale'}`
+                    : 'Non ancora registrati'}
+                </div>
+              </div>
+              <button onClick={importFromIntervention} style={btn(filled ? 'ghost' : 'primary', 'sm')}>
+                {filled ? '🔄 Aggiorna dall\'intervento' : '⬇️ Importa dall\'intervento'}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
       {/* POD1 Dynamic Risk Update */}
       {showRic && (<>
       {currentAssessmentId && (() => {
