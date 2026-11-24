@@ -1336,6 +1336,12 @@ function getRecs(level: string, pcs: number, pass: number, csi: number, opioids:
 
 // calcDynamicRisk imported from ./utils/cpspRisk
 
+// Anestesia regionale/neuroassiale: anesthesia_type può essere una lista separata da virgole (es. "Spinale,Locoregionale")
+function isRegionalAnesthesia(t?: string | null): boolean {
+  if (!t) return false;
+  return t.toLowerCase().split(',').map(x => x.trim()).some(x => ['spinale', 'epidurale', 'locoregionale', 'combinata spinale-epidurale'].includes(x));
+}
+
 // Functional Activity Score (Scott & McDonald, 2008): quanto il dolore limita l'attività funzionale valutata
 const FAS_DESC: Record<string, string> = {
   A: 'Nessuna limitazione: esegue l\'attività senza limitazioni dovute al dolore',
@@ -1822,10 +1828,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
         setSurgeryDurationMinutes(String(latestIntervention.duration_minutes));
         populated = true;
       }
-      const REGIONAL_TYPES = ['epidurale', 'locoregionale', 'spinale'];
-      const anesthesiaIsRegional = latestIntervention.anesthesia_type
-        ? REGIONAL_TYPES.includes(latestIntervention.anesthesia_type)
-        : false;
+      const anesthesiaIsRegional = isRegionalAnesthesia(latestIntervention.anesthesia_type);
       const hasRegionalBlocks = latestIntervention.regional_blocks && latestIntervention.regional_blocks.trim() !== '';
       if (anesthesiaIsRegional || hasRegionalBlocks) {
         setRegionalAnesthesia(true);
@@ -2811,7 +2814,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
               ? <button onClick={() => generateQr()} disabled={qrLoading} style={{ ...btn('ghost', 'sm'), borderColor: '#7C3AED', color: '#7C3AED' }}>
                   {qrLoading ? '⏳' : '📱 QR Paziente'}
                 </button>
-              : <span style={{ fontSize: 12, color: '#9CA3AF', fontStyle: 'italic' }}>💾 Salva prima la valutazione per generare il QR</span>
+              : <span style={{ fontSize: 12, color: '#9CA3AF', fontStyle: 'italic' }}>📱 Il QR si genera da + Nuova → passo Questionari</span>
             }
             <button onClick={openNewAssessmentForm} style={btn('primary', 'sm')}>+ Nuova</button>
           </div>
@@ -2959,7 +2962,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
           const { data: iv } = await supabase.from('interventions').select('*').eq('patient_id', patientId)
             .order('created_at', { ascending: false }).limit(1).maybeSingle();
           if (!iv) { alert('Nessun intervento registrato: aggiungilo prima nella sezione Intervento.'); return; }
-          const regional = ['epidurale', 'locoregionale', 'spinale'].includes(iv.anesthesia_type) || !!(iv.regional_blocks && iv.regional_blocks.trim());
+          const regional = isRegionalAnesthesia(iv.anesthesia_type) || !!(iv.regional_blocks && iv.regional_blocks.trim());
           const upd: any = {
             surgery_duration_minutes: iv.duration_minutes ?? a.surgery_duration_minutes ?? null,
             regional_anesthesia: regional,
@@ -3709,9 +3712,12 @@ function PatientDetailPage() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // Apre la scheda sulla fase in corso, in base allo stato del paziente
+  const lastStatusRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!patient || tab !== '') return;
+    if (!patient) return;
     const st = getPatientStatus(patient);
+    if (lastStatusRef.current === st && tab !== '') return;
+    lastStatusRef.current = st;
     setTab(st === 'pre_ricovero' ? 'pre' : st === 'ricoverato' ? 'ric' : 'post');
   }, [patient, tab]);
 
