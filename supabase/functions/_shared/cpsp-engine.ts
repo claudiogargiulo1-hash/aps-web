@@ -1,4 +1,4 @@
-export const ENGINE_VERSION = '2026.06.0';
+export const ENGINE_VERSION = '2026.11.0';
 
 export const SURGERY_RISK_MAP: Record<string, number> = {
   // iOS / canonical keys
@@ -34,7 +34,7 @@ export function calcPreopRisk(p: {
   const opioidNorm = p.opioids === 'cronico' ? 'chronic' : p.opioids === 'intermittente' ? 'intermittent' : p.opioids;
   const opioidScore = opioidNorm === 'chronic' ? 30 : opioidNorm === 'intermittent' ? 15 : 0;
   const rawScore = surgeryScore + painScore + opioidScore
-    + (p.pcsTotal / 52) * 20 + (p.passTotal / 80) * 15 + (p.csiTotal / 100) * 15;
+    + (p.pcsTotal / 52) * 20 + (p.passTotal / 100) * 15 + (p.csiTotal / 100) * 15;
   let pct = Math.min(100, Math.round((rawScore / 130) * 100));
   if (p.distressThermometer >= 7) pct = Math.min(100, pct + 15);
   if (p.painOtherSites)           pct = Math.min(100, pct + 10);

@@ -1941,7 +1941,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
     }
     const { data: riskData, error: riskError } = await supabase.functions.invoke('compute-cpsp-risk', { body: riskPayload });
     if (!riskError && riskData?.pct != null && savedId) {
-      await cpspSvc.saveAssessment(supabase, { cpsp_risk_pct: riskData.pct, cpsp_risk_level: riskData.level, engine_version: '2026.06.0' }, savedId);
+      await cpspSvc.saveAssessment(supabase, { cpsp_risk_pct: riskData.pct, cpsp_risk_level: riskData.level, engine_version: riskData.version || null }, savedId);
     } else if (savedId) {
       setRiskRetryPayload({ assessmentId: savedId, ...riskPayload });
     }
@@ -2800,7 +2800,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
               const { assessmentId, ...apiPayload } = riskRetryPayload;
               const { data, error } = await supabase.functions.invoke('compute-cpsp-risk', { body: apiPayload });
               if (!error && data?.pct != null) {
-                await cpspSvc.saveAssessment(supabase, { cpsp_risk_pct: data.pct, cpsp_risk_level: data.level, engine_version: '2026.06.0' }, assessmentId);
+                await cpspSvc.saveAssessment(supabase, { cpsp_risk_pct: data.pct, cpsp_risk_level: data.level, engine_version: data.version || null }, assessmentId);
                 setRiskRetryPayload(null);
                 await loadData();
               }
@@ -2950,7 +2950,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
                 })()}
                 <div style={{ marginTop: 10, padding: '8px 10px', backgroundColor: '#FFF7ED', borderRadius: 8, border: '1px solid #FED7AA' }}>
                   <div style={{ fontSize: 10, color: '#92400E', lineHeight: 1.4 }}>
-                    ⚠️ Strumento di supporto decisionale. Framework basato su: CPSP Assessment Pack Preop/Postop 2026; P4-Prevoque PERISCOPE Trial 2025 (AUC=0.81); Cohort prospettica multicentrica n=960 (AUC=0.748); BJA/AoA Consensus 2024; IASP 2021; PROSPECT (ESRA) 2020–2026; Carley et al. Anesthesiology 2021; Doleman et al. BJA 2023; SSAPM Swiss Med Wkly 2026. Scale validate: PCS-I (Sullivan 1995/Monticone et al., cutoff ≥30/52); PASS-20 (McCracken 2002, cutoff ≥30/80); CSI (Mayer 2012/Neblett 2013, cutoff ≥40/100); Distress Thermometer (cutoff ≥7). Nota: gabapentinoidi e duloxetina non raccomandati di routine in perioperatorio (PROSPECT; Carley 2021). Tutti i farmaci sono off-label per uso perioperatorio preventivo. Non sostituisce la valutazione clinica individuale. — Nota metodologica: i coefficienti attuali sono clinicamente derivati (placeholder). Il modello sarà sostituito da coefficienti stimati via regressione logistica penalizzata (LASSO/elastic-net) con bootstrap dopo raccolta prospettica di ≥200 pazienti (Studio APS-CPSP, Fase 1). Tutte le variabili sono raccolte come valori continui per la derivazione statistica futura.
+                    ⚠️ Strumento di supporto decisionale. Framework basato su: CPSP Assessment Pack Preop/Postop 2026; P4-Prevoque PERISCOPE Trial 2025 (AUC=0.81); Cohort prospettica multicentrica n=960 (AUC=0.748); BJA/AoA Consensus 2024; IASP 2021; PROSPECT (ESRA) 2020–2026; Carley et al. Anesthesiology 2021; Doleman et al. BJA 2023; SSAPM Swiss Med Wkly 2026. Scale validate: PCS-I (Sullivan 1995/Monticone et al., cutoff ≥30/52); PASS-20 (McCracken & Dhingra 2002, 0–5 × 20 item = 0–100; cutoff ≥30/100 esplorativo); CSI (Mayer 2012/Neblett 2013, cutoff ≥40/100); Distress Thermometer (cutoff ≥7). Nota: gabapentinoidi e duloxetina non raccomandati di routine in perioperatorio (PROSPECT; Carley 2021). Tutti i farmaci sono off-label per uso perioperatorio preventivo. Non sostituisce la valutazione clinica individuale. — Nota metodologica: i coefficienti attuali sono clinicamente derivati (placeholder). Il modello sarà sostituito da coefficienti stimati via regressione logistica penalizzata (LASSO/elastic-net) con bootstrap dopo raccolta prospettica di ≥200 pazienti (Studio APS-CPSP, Fase 1). Tutte le variabili sono raccolte come valori continui per la derivazione statistica futura.
                   </div>
                 </div>
               </div>
@@ -7133,12 +7133,16 @@ function PostDischargeNrsView({ tokenRow }: { tokenRow: any }) {
 }
 
 const Q_LABELS = ['0 — Mai', '1 — Raramente', '2 — A volte', '3 — Spesso', '4 — Sempre'];
-const Q_BG     = ['#F3F4F6', '#DCFCE7', '#FEF9C3', '#FFEDD5', '#FECACA'];
-const Q_COLOR  = ['#6B7280', '#16A34A', '#CA8A04', '#EA580C', '#DC2626'];
+const Q_BG5    = ['#F3F4F6', '#DCFCE7', '#FEF9C3', '#FFEDD5', '#FECACA'];
+const Q_COLOR5 = ['#6B7280', '#16A34A', '#CA8A04', '#EA580C', '#DC2626'];
+const Q_BG6    = ['#F3F4F6', '#DCFCE7', '#ECFCCB', '#FEF9C3', '#FFEDD5', '#FECACA'];
+const Q_COLOR6 = ['#6B7280', '#16A34A', '#65A30D', '#CA8A04', '#EA580C', '#DC2626'];
+// PASS-20 originale (McCracken & Dhingra 2002): 0 = mai … 5 = sempre → totale 0–100
+const Q_LABELS_PASS = ['0 — Mai', '1 — Quasi mai', '2 — Raramente', '3 — A volte', '4 — Spesso', '5 — Sempre'];
 
 const SCALES_CFG = [
   { key: 'pcs'  as const, name: 'PCS',  label: 'PCS — Catastrofizzazione del dolore',  items: PCS_ITEMS,  maxVal: 4 },
-  { key: 'pass' as const, name: 'PASS', label: 'PASS — Ansia da dolore',               items: PASS_ITEMS, maxVal: 4 },
+  { key: 'pass' as const, name: 'PASS', label: 'PASS — Ansia da dolore',               items: PASS_ITEMS, maxVal: 5 },
   { key: 'csi'  as const, name: 'CSI',  label: 'CSI — Sensitizzazione centrale',        items: CSI_ITEMS,  maxVal: 4 },
 ];
 
@@ -7359,7 +7363,9 @@ function PatientQuestionnairePage() {
 
           {/* Pulsanti risposta */}
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10, marginBottom: 22 }}>
-            {Q_LABELS.map((label, v) => {
+            {(scaleCfg.maxVal === 5 ? Q_LABELS_PASS : Q_LABELS).map((label, v) => {
+              const Q_BG = scaleCfg.maxVal === 5 ? Q_BG6 : Q_BG5;
+              const Q_COLOR = scaleCfg.maxVal === 5 ? Q_COLOR6 : Q_COLOR5;
               const selected = selectedVal === v;
               return (
                 <button key={v} onClick={() => handleAnswer(v)}

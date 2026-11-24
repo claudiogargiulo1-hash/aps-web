@@ -47,40 +47,40 @@ Deno.test('golden-2: NRS=0, THA → basso (pct=15)', () => {
   assertEquals(r.level, 'basso');
 });
 
-Deno.test('golden-3: TKA, moderate scales → moderato (pct=35)', () => {
+Deno.test('golden-3: TKA, moderate scales → moderato (pct=34)', () => {
   const r = calcPreopRisk({
     surgeryType: 'TKA', opioids: 'none', nrsPreop: 3,
     pcsTotal: 20, passTotal: 25, csiTotal: 30,
     distressThermometer: 0, painOtherSites: false,
     insomniaPresent: false, smoking: false, frailty: false,
   });
-  assertEquals(r.pct, 35);
+  assertEquals(r.pct, 34);
   assertEquals(r.level, 'moderato');
-  assertEquals(r.score, 44.9);
+  assertEquals(r.score, 43.9);
 });
 
-Deno.test('golden-4: VERTEBRALE_FUSIONE + intermittent opioids + high scales → alto (pct=62)', () => {
+Deno.test('golden-4: VERTEBRALE_FUSIONE + intermittent opioids + high scales → alto (pct=61)', () => {
   const r = calcPreopRisk({
     surgeryType: 'VERTEBRALE_FUSIONE', opioids: 'intermittent', nrsPreop: 6,
     pcsTotal: 30, passTotal: 40, csiTotal: 50,
     distressThermometer: 0, painOtherSites: false,
     insomniaPresent: false, smoking: false, frailty: false,
   });
-  assertEquals(r.pct, 62);
+  assertEquals(r.pct, 61);
   assertEquals(r.level, 'alto');
-  assertEquals(r.score, 80.5);
+  assertEquals(r.score, 79.0);
 });
 
-Deno.test('golden-5: molto_alto without bonuses (pct=91)', () => {
+Deno.test('golden-5: molto_alto without bonuses (pct=89)', () => {
   const r = calcPreopRisk({
     surgeryType: 'VERTEBRALE_FUSIONE', opioids: 'chronic', nrsPreop: 8,
     pcsTotal: 45, passTotal: 70, csiTotal: 80,
     distressThermometer: 0, painOtherSites: false,
     insomniaPresent: false, smoking: false, frailty: false,
   });
-  assertEquals(r.pct, 91);
+  assertEquals(r.pct, 89);
   assertEquals(r.level, 'molto_alto');
-  assertEquals(r.score, 118.4);
+  assertEquals(r.score, 115.8);
 });
 
 Deno.test('golden-6: NRS=10 → moderato (pct=35)', () => {
@@ -95,22 +95,22 @@ Deno.test('golden-6: NRS=10 → moderato (pct=35)', () => {
   assertEquals(r.score, 45.0);
 });
 
-Deno.test('golden-7: all bonuses active → molto_alto (pct=85)', () => {
+Deno.test('golden-7: all bonuses active → molto_alto (pct=84)', () => {
   const r = calcPreopRisk({
     surgeryType: 'THA', opioids: 'intermittent', nrsPreop: 5,
     pcsTotal: 20, passTotal: 20, csiTotal: 20,
     distressThermometer: 7, painOtherSites: true,
     insomniaPresent: true, smoking: true, frailty: true,
   });
-  assertEquals(r.pct, 85);
+  assertEquals(r.pct, 84);
   assertEquals(r.level, 'molto_alto');
-  assertEquals(r.score, 56.9);
+  assertEquals(r.score, 56.2);
 });
 
 Deno.test('golden-8: score exceeds 100 before cap → capped at 100', () => {
   const r = calcPreopRisk({
     surgeryType: 'VERTEBRALE_FUSIONE', opioids: 'chronic', nrsPreop: 10,
-    pcsTotal: 52, passTotal: 80, csiTotal: 100,
+    pcsTotal: 52, passTotal: 100, csiTotal: 100,
     distressThermometer: 8, painOtherSites: true,
     insomniaPresent: true, smoking: true, frailty: true,
   });
