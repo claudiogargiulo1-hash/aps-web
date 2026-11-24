@@ -1248,12 +1248,15 @@ function getRecs(level: string, pcs: number, pass: number, csi: number, opioids:
 
 // calcDynamicRisk imported from ./utils/cpspRisk
 
-function CPSPTab({ patientId, profile, patient }: { patientId: string, profile: any, patient?: any }) {
+function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, profile: any, patient?: any, phase?: 'pre'|'ric'|'post' }) {
+  const showPre = !phase || phase === 'pre';
+  const showRic = !phase || phase === 'ric';
+  const showPost = !phase || phase === 'post';
   const tenantId = localStorage.getItem('tenant_id');
   const [assessments, setAssessments] = useState<any[]>([]);
   const [followups, setFollowups] = useState<any[]>([]);
   const [view, setView] = useState<'list'|'assessment_form'|'followup_form'>('list');
-  const [formTab, setFormTab] = useState<'info'|'screening'|'intraop'|'pcs'|'pass'|'csi'>('info');
+  const [formTab, setFormTab] = useState<'info'|'screening'|'intraop'|'questionari'>('info');
   const [saving, setSaving] = useState(false);
   const [editingAssessmentId, setEditingAssessmentId] = useState<string|null>(null);
   const [editingFollowupId, setEditingFollowupId] = useState<string|null>(null);
@@ -1979,14 +1982,15 @@ function CPSPTab({ patientId, profile, patient }: { patientId: string, profile: 
   const NRSRow = NRSSlider;
 
   if (view === 'assessment_form') {
+    const intraopFromIntervention = autoPopulatedFromIntervention && !editingAssessmentId;
     const fTabs = [
-      { key: 'info', label: '📋 Info' },
-      { key: 'screening', label: '🩺 Screening' },
-      { key: 'intraop', label: '🔧 Intraop' },
-      { key: 'pcs', label: `PCS (${pcsTotal}/52)` },
-      { key: 'pass', label: `PASS (${passTotal}/100)` },
-      { key: 'csi', label: `CSI (${csiTotal}/100)` },
+      { key: 'info', label: '1 · Dati base' },
+      { key: 'screening', label: '2 · Screening' },
+      ...(intraopFromIntervention ? [] : [{ key: 'intraop', label: '3 · Intraop' }]),
+      { key: 'questionari', label: `${intraopFromIntervention ? 3 : 4} · Questionari` },
     ];
+    const fIdx = fTabs.findIndex(t => t.key === formTab);
+    const nextTab = fIdx >= 0 && fIdx < fTabs.length - 1 ? fTabs[fIdx + 1] : null;
     return (
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -2236,35 +2240,47 @@ function CPSPTab({ patientId, profile, patient }: { patientId: string, profile: 
             </div>
           </div>
         )}
-        {formTab === 'pcs' && (
+        {formTab === 'questionari' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {intraopFromIntervention && (
+            <div style={{ backgroundColor: '#F3F4F6', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#6B7280' }}>
+              ℹ️ Dati intraoperatori presi dall'intervento registrato ({surgeryDurationMinutes ? surgeryDurationMinutes + ' min' : 'durata n.d.'}{regionalAnesthesia ? ' · ' + (regionalAnesthesiaType || 'anestesia regionale') : ''})
+            </div>
+          )}
           <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: T.text, borderBottom: `1px solid ${T.border}`, paddingBottom: 6, marginBottom: 8 }}>PCS — Catastrofizzazione</div>
             <p style={{ fontSize: 12, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
               0 = Per niente &nbsp;·&nbsp; 1 = In piccola misura &nbsp;·&nbsp; 2 = Moderatamente &nbsp;·&nbsp; 3 = In grande misura &nbsp;·&nbsp; 4 = Sempre
             </p>
             <ScoreRow items={PCS_ITEMS} scores={pcsScores} setScores={setPcsScores} maxScore={4} />
             <div style={{ marginTop: 12, textAlign: 'right', fontWeight: 700, color: T.primary }}>Totale PCS: {pcsTotal}/52</div>
           </div>
-        )}
-        {formTab === 'pass' && (
           <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: T.text, borderBottom: `1px solid ${T.border}`, paddingBottom: 6, marginBottom: 8 }}>PASS — Ansia da dolore</div>
             <p style={{ fontSize: 12, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
               0 = Mai &nbsp;·&nbsp; 1 = Raramente &nbsp;·&nbsp; 2 = A volte &nbsp;·&nbsp; 3 = Spesso &nbsp;·&nbsp; 4 = Molto spesso &nbsp;·&nbsp; 5 = Sempre
             </p>
             <ScoreRow items={PASS_ITEMS} scores={passScores} setScores={setPassScores} maxScore={5} />
             <div style={{ marginTop: 12, textAlign: 'right', fontWeight: 700, color: T.primary }}>Totale PASS: {passTotal}/100</div>
           </div>
-        )}
-        {formTab === 'csi' && (
           <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: T.text, borderBottom: `1px solid ${T.border}`, paddingBottom: 6, marginBottom: 8 }}>CSI — Sensitizzazione centrale</div>
             <p style={{ fontSize: 12, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
               0 = Mai &nbsp;·&nbsp; 1 = Raramente &nbsp;·&nbsp; 2 = A volte &nbsp;·&nbsp; 3 = Spesso &nbsp;·&nbsp; 4 = Sempre
             </p>
             <ScoreRow items={CSI_ITEMS} scores={csiScores} setScores={setCsiScores} maxScore={4} />
             <div style={{ marginTop: 12, textAlign: 'right', fontWeight: 700, color: T.primary }}>Totale CSI: {csiTotal}/100</div>
           </div>
+          </div>
+        )}
+        {nextTab && (
+          <button onClick={() => { setFormTab(nextTab.key as any); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            style={{ ...btn('ghost', 'md'), width: '100%', justifyContent: 'center', marginTop: 20 }}>
+            Avanti: {nextTab.label.replace(/^\d+ · /, '')} →
+          </button>
         )}
         <button onClick={saveAssessment} disabled={saving}
-          style={{ ...btn('primary', 'md'), width: '100%', justifyContent: 'center', marginTop: 20 }}>
+          style={{ ...btn('primary', 'md'), width: '100%', justifyContent: 'center', marginTop: nextTab ? 8 : 20 }}>
           {saving ? 'Salvataggio...' : editingAssessmentId ? '💾 Aggiorna Valutazione' : '💾 Salva Valutazione'}
         </button>
       </div>
@@ -2674,6 +2690,7 @@ function CPSPTab({ patientId, profile, patient }: { patientId: string, profile: 
         </div>
       )}
       {/* Preoperative Assessment */}
+      {showPre && (<>
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.text }}>🔍 Valutazione Preoperatoria</h3>
@@ -2818,7 +2835,9 @@ function CPSPTab({ patientId, profile, patient }: { patientId: string, profile: 
         })}
       </div>
 
+      </>)}
       {/* POD1 Dynamic Risk Update */}
+      {showRic && (<>
       {currentAssessmentId && (() => {
         const currentAss = assessments.find(a => a.id === currentAssessmentId);
         if (!currentAss) return null;
@@ -2926,7 +2945,9 @@ function CPSPTab({ patientId, profile, patient }: { patientId: string, profile: 
         );
       })()}
 
+      </>)}
       {/* NRS Daily Chart + Timeline */}
+      {showPost && (<>
       {(() => {
         const ass = assessments[0];
         if (!ass) return null;
@@ -3246,7 +3267,9 @@ function CPSPTab({ patientId, profile, patient }: { patientId: string, profile: 
         );
       })()}
 
+      </>)}
       {/* Follow-up */}
+      {showPost && (<>
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.text }}>📅 Follow-up CPSP</h3>
@@ -3291,6 +3314,7 @@ function CPSPTab({ patientId, profile, patient }: { patientId: string, profile: 
         )}
       </div>
 
+      </>)}
       {/* Manual POD entry modal */}
       {podEditModal && assessments[0] && (() => {
         const ass = assessments[0];
@@ -3495,7 +3519,8 @@ function PatientDetailPage() {
   const [patient, setPatient] = useState<any>(null);
   const [interventions, setInterventions] = useState<any[]>([]);
   const [measurements, setMeasurements] = useState<any[]>([]);
-  const [tab, setTab] = useState<'nrs'|'info'|'interventions'|'cpsp'|'audit'>('nrs');
+  const [tab, setTab] = useState<'pre'|'ric'|'post'|'audit'|''>('');
+  const [latestRisk, setLatestRisk] = useState<any>(null);
   const [nrsValue, setNrsValue] = useState<number|null>(null);
   const [nrsMovement, setNrsMovement] = useState<number>(0);
   const [therapy, setTherapy] = useState('');
@@ -3517,17 +3542,26 @@ function PatientDetailPage() {
   const [dischargeQrLoading, setDischargeQrLoading] = useState(false);
 
   const fetchAll = useCallback(async () => {
-    const [pRes, iRes, mRes] = await Promise.all([
+    const [pRes, iRes, mRes, rRes] = await Promise.all([
       supabase.from('patients').select('*').eq('id', id).single(),
       supabase.from('interventions').select('*').eq('patient_id', id).order('created_at', { ascending: false }),
       supabase.from('nrs_measurements').select('*').eq('patient_id', id).order('measured_at', { ascending: false }).limit(50),
+      supabase.from('cpsp_assessments').select('cpsp_risk_pct, cpsp_risk_level').eq('patient_id', id).order('created_at', { ascending: false }).limit(1),
     ]);
     setPatient(pRes.data);
+    setLatestRisk(rRes.data?.[0] || null);
     setInterventions(iRes.data || []);
     setMeasurements(mRes.data || []);
   }, [id]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Apre la scheda sulla fase in corso, in base allo stato del paziente
+  useEffect(() => {
+    if (!patient || tab !== '') return;
+    const st = getPatientStatus(patient);
+    setTab(st === 'pre_ricovero' ? 'pre' : st === 'ricoverato' ? 'ric' : 'post');
+  }, [patient, tab]);
 
   // Auto-select closest past scheduled NRS slot on first load
   useEffect(() => {
@@ -3685,7 +3719,6 @@ function PatientDetailPage() {
 
   if (!patient) return <div style={{ textAlign: 'center', padding: 60, color: T.textMuted }}>Caricamento...</div>;
 
-  const tabs = [['nrs', '📊 NRS'], ['info', '👤 Info'], ['interventions', '🔧 Interventi'], ['cpsp', '🧠 CPSP'], ...(profile?.role === 'admin' ? [['audit', '📜 Cronologia']] : [])];
 
   // Scheduled NRS slots from last intervention end time, or default daily slots
   const lastEndTimeStr = interventions[0]?.intervention_end_time;
@@ -3848,20 +3881,142 @@ function PatientDetailPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, backgroundColor: T.card, borderRadius: 14, padding: 4, boxShadow: '0 2px 8px rgba(0,80,80,0.08)', width: 'fit-content' }}>
-        {tabs.map(([t, label]) => (
-          <button key={t} onClick={() => setTab(t as any)}
-            style={{ padding: isMobile ? '8px 14px' : '8px 20px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: isMobile ? 13 : 14,
-              backgroundColor: tab === t ? T.primary : 'transparent',
-              color: tab === t ? '#fff' : T.textMuted, transition: 'all 0.15s' }}>
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Sintesi paziente — sempre visibile */}
+      {(() => {
+        const last = measurements[0];
+        const age = patient.date_of_birth ? Math.floor((Date.now() - new Date(patient.date_of_birth).getTime()) / 31557600000) : null;
+        const chips: Array<[string, string, string?]> = [
+          ['Età', age != null ? `${age} anni${patient.gender ? ' · ' + patient.gender : ''}` : '—'],
+          ['ASA', patient.asa_class ? String(patient.asa_class) : '—'],
+          ['Allergie', patient.allergies || 'Nessuna', patient.allergies ? T.danger : undefined],
+          ['Ultimo NRS', last ? `${last.nrs_value}${last.nrs_movement != null ? ' / ' + last.nrs_movement + ' mov' : ''} · ${format(parseISO(last.measured_at), 'dd/MM HH:mm')}` : '—', last && last.nrs_value >= 4 ? (last.nrs_value >= 7 ? T.danger : T.warning) : undefined],
+          ['Rischio CPSP', latestRisk?.cpsp_risk_pct != null ? `${latestRisk.cpsp_risk_pct}% · ${RISK_LABELS[latestRisk.cpsp_risk_level] || ''}` : 'Non valutato', latestRisk?.cpsp_risk_level ? RISK_COLORS[latestRisk.cpsp_risk_level] : undefined],
+        ];
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)', gap: 8, marginBottom: 16 }}>
+            {chips.map(([label, value, color]) => (
+              <div key={label} style={{ backgroundColor: T.card, borderRadius: 12, padding: '8px 12px', boxShadow: '0 1px 4px rgba(0,80,80,0.06)' }}>
+                <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 0.5 }}>{label}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: color || T.text, marginTop: 2 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
-      {/* NRS Tab */}
-      {tab === 'nrs' && (
+      {/* Fasi del percorso */}
+      {(() => {
+        const st = getPatientStatus(patient);
+        const current = st === 'pre_ricovero' ? 'pre' : st === 'ricoverato' ? 'ric' : 'post';
+        const steps: Array<[string, string, string]> = [['pre', '1', 'Preoperatorio'], ['ric', '2', 'Ricovero'], ['post', '3', 'Post-dimissione']];
+        return (
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, marginBottom: 16 }}>
+            {steps.map(([key, n, label]) => {
+              const active = tab === key;
+              return (
+                <button key={key} onClick={() => setTab(key as any)}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: isMobile ? '8px 8px' : '10px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left' as const,
+                    border: `2px solid ${active ? T.primary : 'transparent'}`, backgroundColor: active ? T.primaryLight : T.card, boxShadow: '0 1px 4px rgba(0,80,80,0.06)' }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 12, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800,
+                    backgroundColor: active ? T.primary : T.bg, color: active ? '#fff' : T.textMuted }}>{n}</span>
+                  <span style={{ display: 'flex', flexDirection: 'column' as const, minWidth: 0 }}>
+                    <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 700, color: active ? T.primary : T.text, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+                    {current === key && <span style={{ fontSize: 10, fontWeight: 700, color: T.success }}>● in corso</span>}
+                  </span>
+                </button>
+              );
+            })}
+            {profile?.role === 'admin' && (
+              <button onClick={() => setTab('audit')} title="Cronologia modifiche"
+                style={{ width: 44, flexShrink: 0, borderRadius: 12, cursor: 'pointer', fontSize: 16, border: `2px solid ${tab === 'audit' ? T.primary : 'transparent'}`, backgroundColor: tab === 'audit' ? T.primaryLight : T.card }}>📜</button>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── FASE 1 · PREOPERATORIO ── */}
+      {tab === 'pre' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <details style={{ ...card, padding: '10px 16px' }}>
+            <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 700, color: T.textMuted }}>👤 Dati paziente completi</summary>
+            {[
+              ['Nome', patient.first_name + ' ' + patient.last_name],
+              ['Data di nascita', formatDateDisplay(patient.date_of_birth)],
+              ['Codice Fiscale', patient.fiscal_code || '—'],
+              ['Sesso', patient.gender || '—'],
+              ['N° Ricovero', patient.admission_number],
+              ['Reparto', patient.ward],
+              ['Letto', patient.bed || '—'],
+              ['Data ricovero', formatDateDisplay(patient.admission_date)],
+              ['Peso', patient.weight_kg ? patient.weight_kg + ' kg' : '—'],
+              ['Altezza', patient.height_cm ? patient.height_cm + ' cm' : '—'],
+              ['Classe ASA', patient.asa_class ? 'ASA ' + patient.asa_class : '—'],
+              ['Allergie', patient.allergies || '—'],
+              ['Note', patient.notes || '—'],
+            ].map(([label, value]) => (
+              <div key={label} style={{ display: 'flex', padding: '9px 0', borderBottom: `1px solid ${T.bg}` }}>
+                <div style={{ width: 130, fontSize: 12, color: T.textMuted, fontWeight: 700, flexShrink: 0, textTransform: 'uppercase' as const, letterSpacing: 0.5 }}>{label}</div>
+                <div style={{ flex: 1, fontSize: 14, fontWeight: label === 'Allergie' && value !== '—' ? 700 : 400, color: label === 'Allergie' && value !== '—' ? T.danger : T.text }}>{value}</div>
+              </div>
+            ))}
+          </details>
+          <CPSPTab patientId={id!} profile={profile} patient={patient} phase="pre" />
+        </div>
+      )}
+
+      {/* ── FASE 2 · RICOVERO ── */}
+      {tab === 'ric' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: T.textMuted, textTransform: 'uppercase' as const, letterSpacing: 0.8, margin: '8px 0 -4px' }}>Intervento</div>
+        <div>
+          {(profile?.role === 'medico' || profile?.role === 'admin') && (
+            <button onClick={() => navigate('/patients/' + id + '/interventions/new')} style={{ ...btn('primary'), marginBottom: 16 }}>
+              + Aggiungi Intervento
+            </button>
+          )}
+          {interventions.length === 0 ? (
+            <div style={{ ...card, textAlign: 'center', padding: 60, color: T.textMuted }}>Nessun intervento registrato</div>
+          ) : interventions.map((i: any) => (
+            <div key={i.id} style={{ ...card, marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <div>
+                  <h3 style={{ margin: '0 0 6px', color: T.text, fontSize: 16, fontWeight: 700 }}>{i.intervention_name}</h3>
+                  {i.intervention_subtype && (
+                    <span style={{ backgroundColor: T.primaryLight, color: T.primary, padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>{i.intervention_subtype}</span>
+                  )}
+                </div>
+                {canDelete && (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => navigate('/patients/' + id + '/interventions/' + i.id + '/edit')} style={{ ...btn('ghost', 'sm'), padding: '4px 10px' }}>✏️</button>
+                    <button onClick={() => deleteIntervention(i.id)} style={{ background: T.dangerLight, border: 'none', padding: '4px 10px', borderRadius: 8, cursor: 'pointer', color: T.danger, fontSize: 12 }}>🗑</button>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 8 }}>
+                {[
+                  ['Categoria', i.category],
+                  ['Anestesia', i.anesthesia_type],
+                  ['Protocollo', i.pain_protocol?.replace(/_/g, ' ')],
+                  ['Chirurgo', i.surgeon || '—'],
+                  ['Anestesista', i.anesthesiologist_name || '—'],
+                  ['Fine intervento', i.intervention_end_time ? format(parseISO(i.intervention_end_time), 'dd/MM/yyyy HH:mm') : '—'],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ backgroundColor: T.bg, borderRadius: 10, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, textTransform: 'uppercase' as const, marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+              {i.postop_drugs && (
+                <div style={{ marginTop: 10, padding: '10px 12px', backgroundColor: T.accentLight, borderRadius: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>🩹 Terapia Post-Op</div>
+                  {renderPostopDrugs(i.postop_drugs)}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: T.textMuted, textTransform: 'uppercase' as const, letterSpacing: 0.8, margin: '8px 0 -4px' }}>Dolore in reparto <span style={{ fontWeight: 500, textTransform: "none" as const, letterSpacing: 0 }}>· NRS</span></div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
           {/* Input */}
           <div style={card}>
@@ -4006,12 +4161,6 @@ function PatientDetailPage() {
             }
           </div>
         </div>
-      )}
-
-      {/* Info Tab */}
-      {tab === 'info' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* NRS Chart */}
           {chartData.length > 1 && (
             <div style={card}>
               <h3 style={{ margin: '0 0 4px', color: T.text, fontSize: 15, fontWeight: 700 }}>📊 Andamento NRS</h3>
@@ -4029,92 +4178,18 @@ function PatientDetailPage() {
               </ResponsiveContainer>
             </div>
           )}
-
-          {/* Data */}
-          <div style={card}>
-            <h3 style={{ margin: '0 0 12px', color: T.text, fontSize: 15, fontWeight: 700 }}>👤 Dati Paziente</h3>
-            {[
-              ['Nome', patient.first_name + ' ' + patient.last_name],
-              ['Data di nascita', formatDateDisplay(patient.date_of_birth)],
-              ['Codice Fiscale', patient.fiscal_code || '—'],
-              ['Sesso', patient.gender || '—'],
-              ['N° Ricovero', patient.admission_number],
-              ['Reparto', patient.ward],
-              ['Letto', patient.bed || '—'],
-              ['Data ricovero', formatDateDisplay(patient.admission_date)],
-              ['Peso', patient.weight_kg ? patient.weight_kg + ' kg' : '—'],
-              ['Altezza', patient.height_cm ? patient.height_cm + ' cm' : '—'],
-              ['Classe ASA', patient.asa_class ? 'ASA ' + patient.asa_class : '—'],
-              ['Allergie', patient.allergies || '—'],
-              ['Note', patient.notes || '—'],
-            ].map(([label, value]) => (
-              <div key={label} style={{ display: 'flex', padding: '9px 0', borderBottom: `1px solid ${T.bg}` }}>
-                <div style={{ width: 130, fontSize: 12, color: T.textMuted, fontWeight: 700, flexShrink: 0, textTransform: 'uppercase' as const, letterSpacing: 0.5 }}>{label}</div>
-                <div style={{ flex: 1, fontSize: 14, fontWeight: label === 'Allergie' && value !== '—' ? 700 : 400, color: label === 'Allergie' && value !== '—' ? T.danger : T.text }}>{value}</div>
-              </div>
-            ))}
-          </div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: T.textMuted, textTransform: 'uppercase' as const, letterSpacing: 0.8, margin: '8px 0 -4px' }}>Oppioidi</div>
           <OpioidTracker patientId={id!} interventionId={interventions[0]?.id} profile={profile} />
-        </div>
-      )}
-
-      {/* Interventions Tab */}
-      {tab === 'interventions' && (
-        <div>
-          {(profile?.role === 'medico' || profile?.role === 'admin') && (
-            <button onClick={() => navigate('/patients/' + id + '/interventions/new')} style={{ ...btn('primary'), marginBottom: 16 }}>
-              + Aggiungi Intervento
-            </button>
-          )}
-          {interventions.length === 0 ? (
-            <div style={{ ...card, textAlign: 'center', padding: 60, color: T.textMuted }}>Nessun intervento registrato</div>
-          ) : interventions.map((i: any) => (
-            <div key={i.id} style={{ ...card, marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                <div>
-                  <h3 style={{ margin: '0 0 6px', color: T.text, fontSize: 16, fontWeight: 700 }}>{i.intervention_name}</h3>
-                  {i.intervention_subtype && (
-                    <span style={{ backgroundColor: T.primaryLight, color: T.primary, padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>{i.intervention_subtype}</span>
-                  )}
-                </div>
-                {canDelete && (
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => navigate('/patients/' + id + '/interventions/' + i.id + '/edit')} style={{ ...btn('ghost', 'sm'), padding: '4px 10px' }}>✏️</button>
-                    <button onClick={() => deleteIntervention(i.id)} style={{ background: T.dangerLight, border: 'none', padding: '4px 10px', borderRadius: 8, cursor: 'pointer', color: T.danger, fontSize: 12 }}>🗑</button>
-                  </div>
-                )}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 8 }}>
-                {[
-                  ['Categoria', i.category],
-                  ['Anestesia', i.anesthesia_type],
-                  ['Protocollo', i.pain_protocol?.replace(/_/g, ' ')],
-                  ['Chirurgo', i.surgeon || '—'],
-                  ['Anestesista', i.anesthesiologist_name || '—'],
-                  ['Fine intervento', i.intervention_end_time ? format(parseISO(i.intervention_end_time), 'dd/MM/yyyy HH:mm') : '—'],
-                ].map(([label, value]) => (
-                  <div key={label} style={{ backgroundColor: T.bg, borderRadius: 10, padding: '10px 12px' }}>
-                    <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, textTransform: 'uppercase' as const, marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>{value}</div>
-                  </div>
-                ))}
-              </div>
-              {i.postop_drugs && (
-                <div style={{ marginTop: 10, padding: '10px 12px', backgroundColor: T.accentLight, borderRadius: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>🩹 Terapia Post-Op</div>
-                  {renderPostopDrugs(i.postop_drugs)}
-                </div>
-              )}
-            </div>
-          ))}
+          <CPSPTab patientId={id!} profile={profile} patient={patient} phase="ric" />
+          <div style={{ fontSize: 12, fontWeight: 800, color: T.textMuted, textTransform: 'uppercase' as const, letterSpacing: 0.8, margin: '8px 0 -4px' }}>Dimissione <span style={{ fontWeight: 500, textTransform: "none" as const, letterSpacing: 0 }}>· piano di scalaggio oppioidi</span></div>
           <OpioidDischargePlan patientId={id!} profile={profile} />
         </div>
       )}
 
-      {/* CPSP Tab */}
-      {tab === 'cpsp' && <CPSPTab patientId={id!} profile={profile} patient={patient} />}
+      {/* ── FASE 3 · POST-DIMISSIONE ── */}
+      {tab === 'post' && <CPSPTab patientId={id!} profile={profile} patient={patient} phase="post" />}
 
-      {/* Audit Tab (solo admin) */}
+      {/* Cronologia (solo admin) */}
       {tab === 'audit' && profile?.role === 'admin' && <AuditTab patientId={id!} />}
     </div>
   );
