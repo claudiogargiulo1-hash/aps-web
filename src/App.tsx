@@ -4694,6 +4694,88 @@ function ExportPage() {
 // ============================================================
 // SETTINGS
 // ============================================================
+// Creazione di un nuovo centro (tenant) dalle Impostazioni — solo admin
+function NewTenantSection() {
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ name: '', pwd: '', pwd2: '', first: '', last: '', email: '', adminPwd: '' });
+  const [wards, setWards] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [created, setCreated] = useState<{ code: string; name: string } | null>(null);
+  const set = (k: keyof typeof f) => (e: any) => setF(prev => ({ ...prev, [k]: e.target.value }));
+  const reset = () => { setF({ name: '', pwd: '', pwd2: '', first: '', last: '', email: '', adminPwd: '' }); setWards([]); setErr(''); };
+
+  const submit = async () => {
+    if (!f.name.trim() || !f.pwd || !f.first.trim() || !f.last.trim() || !f.email.trim() || !f.adminPwd) { setErr('Compila tutti i campi'); return; }
+    if (f.pwd !== f.pwd2) { setErr('Le password del database non coincidono'); return; }
+    if (f.pwd.length < 6 || f.adminPwd.length < 6) { setErr('Le password devono avere almeno 6 caratteri'); return; }
+    if (wards.length === 0) { setErr('Seleziona almeno un reparto'); return; }
+    setBusy(true); setErr('');
+    const res = await callTenantFnAuth({
+      action: 'create', name: f.name.trim(), password: f.pwd, wards,
+      adminEmail: f.email.trim().toLowerCase(), adminPassword: f.adminPwd,
+      adminFirstName: formatPersonName(f.first), adminLastName: formatPersonName(f.last),
+    });
+    setBusy(false);
+    if (res.error) { setErr(res.error); return; }
+    setCreated({ code: res.code, name: f.name.trim() });
+    reset();
+  };
+
+  return (
+    <div style={{ ...card, marginBottom: 16 }}>
+      <h2 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: T.primary, textTransform: 'uppercase' as const, letterSpacing: 0.5 }}>🏥 Nuovo centro</h2>
+      <p style={{ margin: '0 0 12px', fontSize: 13, color: T.textMuted, lineHeight: 1.5 }}>
+        Crea un database separato per un altro ospedale: pazienti e utenti restano isolati da questo centro.
+      </p>
+      {created && (
+        <div style={{ backgroundColor: T.primaryLight, borderRadius: 12, padding: 14, marginBottom: 12 }}>
+          <div style={{ fontSize: 13, color: T.text, marginBottom: 6 }}>✅ <b>{created.name}</b> creato. Codice di accesso:</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: T.primary, letterSpacing: 2 }}>{created.code}</div>
+          <div style={{ fontSize: 12, color: T.textMuted, marginTop: 6 }}>Comunica al nuovo centro il codice, la password del database e le credenziali dell'amministratore.</div>
+        </div>
+      )}
+      <button onClick={() => { setOpen(true); setErr(''); }} style={btn('primary', 'sm')}>+ Crea nuovo centro</button>
+      {open && (
+        <Modal title="Nuovo centro" onClose={() => { setOpen(false); reset(); }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={lbl}>Nome del centro *</label>
+            <input value={f.name} onChange={set('name')} style={inp} placeholder="es. Policlinico Palermo" />
+            <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>Il codice di accesso viene generato dal nome (prime 6 lettere + anno).</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+            <div><label style={lbl}>Password database *</label><input type="password" value={f.pwd} onChange={set('pwd')} style={inp} /></div>
+            <div><label style={lbl}>Ripeti password *</label><input type="password" value={f.pwd2} onChange={set('pwd2')} style={inp} /></div>
+          </div>
+          <div style={{ backgroundColor: T.bg, borderRadius: 12, padding: '12px 14px', marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.primary, marginBottom: 8 }}>REPARTI *</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {ALL_WARDS.map(w => (
+                <button key={w} onClick={() => setWards(prev => prev.includes(w) ? prev.filter(x => x !== w) : [...prev, w])} style={chip(wards.includes(w))}>{w}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.primary, margin: '4px 0 8px' }}>AMMINISTRATORE DEL NUOVO CENTRO</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div><label style={lbl}>Nome *</label><input value={f.first} onChange={set('first')} style={inp} /></div>
+            <div><label style={lbl}>Cognome *</label><input value={f.last} onChange={set('last')} style={inp} /></div>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={lbl}>Email *</label>
+            <input type="email" value={f.email} onChange={set('email')} style={inp} />
+            <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>Deve essere un'email non già usata in un altro centro.</div>
+          </div>
+          <div style={{ marginBottom: 14 }}><label style={lbl}>Password amministratore *</label><input type="password" value={f.adminPwd} onChange={set('adminPwd')} style={inp} /></div>
+          {err && <div style={{ color: T.danger, fontSize: 13, marginBottom: 10 }}>{err}</div>}
+          <button onClick={submit} disabled={busy} style={{ ...btn('primary', 'md'), width: '100%', justifyContent: 'center' }}>
+            {busy ? 'Creazione in corso...' : 'Crea centro'}
+          </button>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 function SettingsPage() {
   const { profile } = useAuth();
   const isMobile = useIsMobile();
@@ -4852,6 +4934,9 @@ function SettingsPage() {
           </div>
         </Modal>
       )}
+
+      {/* Nuovo centro */}
+      {isAdmin && <NewTenantSection />}
 
       {/* Gestione Reparti */}
       {isAdmin && (
