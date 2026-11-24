@@ -1270,51 +1270,57 @@ const EV_STYLE: Record<string, { bg: string; color: string }> = {
 };
 function getRecs(level: string, pcs: number, pass: number, csi: number, opioids: string, preOpNRS: number, dt = 0, insomnia = false, painOtherSites = false): Rec[] {
   const recs: Rec[] = [];
+  // Raccomandazioni allineate a PROSPECT (ESRA), Carley et al. Anesthesiology 2021 (aggiornamento revisione Cochrane),
+  // Doleman et al. BJA 2023 (network meta-analisi), SSAPM Swiss Med Wkly 2026. Livello C = evidenza a bassa confidenza.
+  const BASE: Rec = { icon: '✅', cat: 'Farmacologico', text: 'Analgesia multimodale di base: paracetamolo + FANS o COX-2 inibitore pre/intraop e postop (salvo controindicazioni); oppioidi solo come rescue', src: 'PROSPECT (ESRA)', ev: 'A' };
+  const REGIONAL: Rec = { icon: '🦷', cat: 'Locoregionale', text: 'Anestesia regionale procedura-specifica secondo PROSPECT: anca → fascia iliaca sovrainguinale o PENG preop; ginocchio → ACB + LIA; ernia → ileoinguinale/TAP; mammella → PVB/PECS/SAP/ESP; toracotomia → epidurale o paravertebrale (vedi bundle sotto)', src: 'PROSPECT ESRA 2020–2026', ev: 'A' };
+  const NO_GABA: Rec = { icon: '⛔', cat: 'Gabapentinoidi', text: 'Pregabalin/gabapentin NON raccomandati di routine per prevenire la CPSP: nessun effetto sulla prevalenza del dolore a 3 mesi (RR 0,88; IC 0,70–1,10) e sconsigliati da PROSPECT in THA, TKA, colonna, ernia, mammella e toracotomia', src: 'Carley et al., Anesthesiology 2021; PROSPECT', ev: 'A' };
+  const KETAMINE: Rec = { icon: '💉', cat: 'Intraoperatorio', text: 'Considerare ketamina EV a basse dosi intraoperatoria, soprattutto se dolore cronico o oppioidi preoperatori. Effetto sulla CPSP incerto: nessun effetto a 6 mesi nell\'aggiornamento Cochrane; possibile riduzione a ≤6 mesi nella network meta-analisi (OR 0,64), bassa confidenza', src: 'Carley 2021; Doleman BJA 2023; PROSPECT colonna', ev: 'C' };
+  const LIDOCAINE: Rec = { icon: '💉', cat: 'Intraoperatorio', text: 'Considerare lidocaina EV intraoperatoria: possibile riduzione della CPSP a ≤6 mesi (OR 0,32), bassa confidenza. Non raccomandata da PROSPECT per il dolore acuto in colonna e mammella', src: 'Doleman et al., BJA 2023', ev: 'C' };
   if (level === 'basso') {
-    recs.push({ icon: '✅', cat: 'Farmacologico', text: 'Analgesia multimodale standard ERAS: paracetamolo 1g x4/die + FANS/COX-2 inibitore + oppioide rescue PRN', src: 'APS Guidelines 2016, PROSPECT 2023', ev: 'A' });
-    recs.push({ icon: '📄', cat: 'Educazione', text: 'Informazione preoperatoria strutturata (pain neuroscience education breve, 1 sessione)', src: 'APS Guidelines 2016', ev: 'B' });
+    recs.push(BASE);
+    recs.push({ icon: '📄', cat: 'Educazione', text: 'Informazione preoperatoria: opzioni analgesiche, effetti collaterali, obiettivi e aspettative realistiche, come verrà valutato il dolore', src: 'SSAPM 2026 (consenso)', ev: 'expert' });
     recs.push({ icon: '📅', cat: 'Follow-up', text: 'Rivalutazione NRS a 1 mese', src: 'Expert consensus', ev: 'expert' });
   } else if (level === 'moderato') {
-    recs.push({ icon: '💊', cat: 'Farmacologico', text: 'Pregabalin 75-150mg x2/die: iniziare 2h prima dell\'intervento, continuare 7-14 giorni post-op (riduzione CPSP OR=0.09 vs placebo in meta-analisi Cochrane 2023)', src: 'Cochrane 2023', ev: 'A' });
-    recs.push({ icon: '💊', cat: 'Farmacologico', text: 'Considerare Gabapentin 300mg x3/die come alternativa al pregabalin (evidenza simile)', src: 'Cochrane 2023', ev: 'A' });
-    recs.push({ icon: '🦷', cat: 'Locoregionale', text: 'Anestesia regionale procedura-specifica secondo PROSPECT: anca → fascia iliaca sovrainguinale o PENG preop; ginocchio → ACB + LIA; ernia → ileoinguinale/TAP; mammella → PVB/PECS/SAP/ESP; toracotomia → epidurale o paravertebrale (vedi bundle sotto)', src: 'PROSPECT ESRA 2020–2026', ev: 'A' });
-    recs.push({ icon: '📋', cat: 'TPS', text: 'Segnalazione al Transitional Pain Service per follow-up strutturato', src: 'Expert consensus', ev: 'expert' });
-    recs.push({ icon: '📅', cat: 'Follow-up', text: 'Follow-up a 3 mesi con NRS + BPI', src: 'IASP 2021', ev: 'B' });
+    recs.push(BASE);
+    recs.push(REGIONAL);
+    recs.push(NO_GABA);
+    recs.push({ icon: '📋', cat: 'TPS', text: 'Paziente a rischio: segnalazione al Transitional Pain Service per follow-up strutturato', src: 'SSAPM 2026 (consenso)', ev: 'expert' });
+    recs.push({ icon: '📅', cat: 'Follow-up', text: 'Follow-up a 3 mesi con NRS + BPI (definizione ICD-11 di CPSP: dolore ≥3 mesi)', src: 'ICD-11 / IASP', ev: 'expert' });
   } else if (level === 'alto') {
-    recs.push({ icon: '💉', cat: 'Intraoperatorio', text: 'Ketamina EV: 0.3-0.5mg/kg bolo all\'induzione + infusione 0.1-0.2mg/kg/h fino a 24h post-op (NMDA antagonismo, unico farmaco con evidenza Cochrane per CPSP)', src: 'ROCKet Trial 2024, Cochrane Review', ev: 'B' });
-    recs.push({ icon: '💊', cat: 'Farmacologico', text: 'Lidocaina EV intraoperatoria: 1.5mg/kg bolo + 2mg/kg/h infusione (evidenza per riduzione CPSP a 6 mesi, più forte di ketamina in network meta-analisi BJA 2023)', src: 'BJA Systematic Review 2023', ev: 'A' });
-    recs.push({ icon: '💊', cat: 'Farmacologico', text: 'Pregabalin 150mg x2/die perioperatorio (dose piena)', src: 'Cochrane 2023', ev: 'A' });
-    recs.push({ icon: '🏥', cat: 'TPS', text: 'Presa in carico TPS obbligatoria con piano dimissione strutturato', src: 'Expert consensus', ev: 'expert' });
+    recs.push(BASE);
+    recs.push(REGIONAL);
+    recs.push(KETAMINE);
+    recs.push(LIDOCAINE);
+    recs.push(NO_GABA);
+    recs.push({ icon: '🏥', cat: 'TPS', text: 'Presa in carico TPS con piano di dimissione strutturato e comunicazione al medico curante', src: 'SSAPM 2026 (consenso)', ev: 'expert' });
     recs.push({ icon: '👨‍⚕️', cat: 'Consulenza', text: 'Consulenza algologica preoperatoria', src: 'Expert consensus', ev: 'expert' });
-    recs.push({ icon: '📅', cat: 'Follow-up', text: '3, 6, 12 mesi con BPI + DN4 + EQ-5D', src: 'IASP 2021', ev: 'B' });
+    recs.push({ icon: '📅', cat: 'Follow-up', text: '3, 6, 12 mesi con BPI + DN4 + EQ-5D', src: 'Expert consensus', ev: 'expert' });
   } else if (level === 'molto_alto') {
-    recs.push({ icon: '🏥', cat: 'Team', text: 'Approccio multidisciplinare obbligatorio: anestesista algolo + psicologo/psichiatra + fisioterapista', src: 'IASP 2021', ev: 'B' });
-    recs.push({ icon: '⚠️', cat: 'Nota Duloxetina', text: 'Due RCT su THA/TKA (duloxetina 60mg/die) NON hanno dimostrato riduzione CPSP (Reinstra et al. 2024). Considerare duloxetina SOLO se CSI≥40 e NON come strategia routinaria per chirurgia ortopedica', src: 'Int J Mol Sci 2024', ev: 'B' });
-    recs.push({ icon: '💉', cat: 'Intraoperatorio', text: 'Ketamina EV + Lidocaina EV in combinazione (sinergismo, evidenza emergente)', src: 'BJA 2023', ev: 'B' });
-    recs.push({ icon: '💉', cat: 'Intraoperatorio', text: 'Considerare Metadone intraoperatorio 0.1-0.2mg/kg (emerging evidence per riduzione CPSP, azione NMDA)', src: 'Expert consensus', ev: 'expert' });
-    recs.push({ icon: '📞', cat: 'Centro del dolore', text: 'Riferimento obbligatorio al Centro del Dolore Cronico PRIMA dell\'intervento', src: 'IASP 2021', ev: 'B' });
-    recs.push({ icon: '📅', cat: 'Follow-up', text: 'Intensivo a 1, 3, 6, 12 mesi con team multidisciplinare', src: 'Expert consensus', ev: 'expert' });
+    recs.push(BASE);
+    recs.push(REGIONAL);
+    recs.push({ icon: '🏥', cat: 'Team', text: 'Approccio multidisciplinare: algologo, psicologo, fisioterapista e medico curante', src: 'SSAPM 2026 (consenso)', ev: 'expert' });
+    recs.push(KETAMINE);
+    recs.push(LIDOCAINE);
+    recs.push(NO_GABA);
+    recs.push({ icon: '⚠️', cat: 'Duloxetina', text: 'Duloxetina non raccomandata di routine in perioperatorio (PROSPECT THA 2026 e mammella 2026): solo su indicazione specialistica', src: 'PROSPECT 2026', ev: 'B' });
+    recs.push({ icon: '📞', cat: 'Centro del dolore', text: 'Invio al Centro del Dolore prima dell\'intervento', src: 'Expert consensus', ev: 'expert' });
+    recs.push({ icon: '📅', cat: 'Follow-up', text: 'Follow-up intensivo a 1, 3, 6, 12 mesi con team multidisciplinare', src: 'Expert consensus', ev: 'expert' });
   }
   if (pcs >= 30) {
-    recs.push({ icon: '🧠', cat: 'Psicologico (PCS≥30)', text: 'Pain Neuroscience Education (PNE) preoperatoria: 1-2 sessioni (riduce catastrofizzazione, evidenza forte in TKA/THA)', src: 'Cochrane 2022, Lewis meta-analisi', ev: 'A' });
-    recs.push({ icon: '🧠', cat: 'Psicologico (PCS≥30)', text: 'CBT orientata al dolore (riduce PCS score, intensità dolore, disabilità)', src: 'Cochrane Review 2021', ev: 'A' });
-    recs.push({ icon: '📖', cat: 'Educazione (PCS≥30)', text: 'Materiale psicoeducativo scritto validato sulla neuroscienza del dolore', src: 'Expert consensus', ev: 'expert' });
+    recs.push({ icon: '🧠', cat: 'Psicologico (PCS≥30)', text: 'Catastrofizzazione elevata (fattore di rischio per CPSP): considerare intervento psicologico preoperatorio (educazione sul dolore, approccio cognitivo-comportamentale). Effetto sulla prevenzione della CPSP non ancora dimostrato', src: 'SSAPM 2026 (fattori di rischio)', ev: 'C' });
+    recs.push({ icon: '📖', cat: 'Educazione (PCS≥30)', text: 'Materiale psicoeducativo scritto sul dolore postoperatorio e sulle aspettative', src: 'Expert consensus', ev: 'expert' });
   }
   if (pass >= 30) {
-    recs.push({ icon: '🤝', cat: 'Psicologico (PASS≥30)', text: 'Valutazione ansiolitica strutturata preoperatoria con colloquio dedicato', src: 'BJA Consensus 2024', ev: 'B' });
-    recs.push({ icon: '💬', cat: 'Counseling (PASS≥30)', text: 'Counseling preoperatorio focalizzato su ansia da dolore (2-3 sessioni)', src: 'APS Guidelines', ev: 'B' });
-    recs.push({ icon: '💊', cat: 'Farmacologico (PASS≥30)', text: 'Considerare clonidina 0.1-0.2mg preoperatoria se ansia severa (effetto ansiolitico + analgesico preemptivo)', src: 'Expert consensus', ev: 'expert' });
+    recs.push({ icon: '🤝', cat: 'Psicologico (PASS≥30)', text: 'Ansia da dolore elevata (fattore di rischio): colloquio preoperatorio dedicato e counseling sull\'ansia da dolore', src: 'SSAPM 2026 (fattori di rischio)', ev: 'expert' });
   }
   if (csi >= 40) {
-    recs.push({ icon: '💊', cat: 'Farmacologico (CSI≥40)', text: 'Pregabalin 75-150mg x2/die è PRIORITARIO: agisce specificamente sui canali calcio voltage-dipendenti, target della sensitizzazione centrale', src: 'IASP 2021', ev: 'A' });
-    recs.push({ icon: '💊', cat: 'Farmacologico (CSI≥40)', text: 'Duloxetina 60mg/die perioperatoria: INDICATA in presenza di CSI≥40 (sensitizzazione centrale documentata) come unica condizione con evidenza positiva', src: 'IASP Fact Sheet 2021', ev: 'B' });
-    recs.push({ icon: '🔄', cat: 'Multimodale (CSI≥40)', text: 'Approccio multimodale obbligatorio, evitare strategia single-drug', src: 'APS Guidelines', ev: 'A' });
-    recs.push({ icon: '🧠', cat: 'Psicologico (CSI≥40)', text: 'MBSR (Mindfulness-Based Stress Reduction) come complemento non farmacologico', src: 'Cochrane 2019', ev: 'B' });
-    recs.push({ icon: '⚠️', cat: 'Attenzione (CSI≥40)', text: 'Sensibilità aumentata richiede titolazione analgesica più attenta intra e postoperatoria', src: 'Expert consensus', ev: 'expert' });
+    recs.push({ icon: '🔄', cat: 'Sensitizzazione (CSI≥40)', text: 'Possibile sensitizzazione centrale: approccio multimodale completo, preferire tecniche regionali, titolazione analgesica attenta intra e postoperatoria', src: 'PROSPECT; Expert consensus', ev: 'expert' });
+    recs.push({ icon: '👨‍⚕️', cat: 'Sensitizzazione (CSI≥40)', text: 'Valutazione algologica; gabapentinoidi e duloxetina non raccomandati di routine in perioperatorio', src: 'Carley 2021; PROSPECT 2026', ev: 'B' });
   }
   if (opioids === 'cronico') {
     recs.push({ icon: '🔄', cat: 'Oppioidi cronici', text: 'Opioid rotation perioperatoria se possibile (ridurre tolleranza crociata)', src: 'Expert consensus', ev: 'expert' });
-    recs.push({ icon: '📉', cat: 'Oppioidi cronici', text: 'Piano di taper strutturato post-operatorio con supporto algologico', src: 'APS Guidelines 2016', ev: 'B' });
+    recs.push({ icon: '📉', cat: 'Oppioidi cronici', text: 'Evitare interruzioni e astinenza; tecniche regionali quando possibile; piano di scalaggio postoperatorio scritto per paziente e medico curante', src: 'SSAPM 2026 (consenso)', ev: 'expert' });
     recs.push({ icon: '👨‍⚕️', cat: 'Oppioidi cronici', text: 'Coinvolgimento obbligatorio algologo per gestione perioperatoria', src: 'Expert consensus', ev: 'expert' });
     recs.push({ icon: '💊', cat: 'Oppioidi cronici', text: 'Considerare buprenorfina SL/TDS come bridge perioperatorio (emerging evidence)', src: 'Expert consensus', ev: 'expert' });
   }
@@ -2944,7 +2950,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
                 })()}
                 <div style={{ marginTop: 10, padding: '8px 10px', backgroundColor: '#FFF7ED', borderRadius: 8, border: '1px solid #FED7AA' }}>
                   <div style={{ fontSize: 10, color: '#92400E', lineHeight: 1.4 }}>
-                    ⚠️ Strumento di supporto decisionale. Framework basato su: CPSP Assessment Pack Preop/Postop 2026; P4-Prevoque PERISCOPE Trial 2025 (AUC=0.81); Cohort prospettica multicentrica n=960 (AUC=0.748); BJA/AoA Consensus 2024; IASP 2021; APS Guidelines 2016; PROSPECT 2023; Cochrane 2022-23. Scale validate: PCS-I (Sullivan 1995/Monticone et al., cutoff ≥30/52); PASS-20 (McCracken 2002, cutoff ≥30/80); CSI (Mayer 2012/Neblett 2013, cutoff ≥40/100); Distress Thermometer (cutoff ≥7). Nota: duloxetina non raccomandata routinariamente in chirurgia ortopedica (Int J Mol Sci 2024). Tutti i farmaci sono off-label per uso perioperatorio preventivo. Non sostituisce la valutazione clinica individuale. — Nota metodologica: i coefficienti attuali sono clinicamente derivati (placeholder). Il modello sarà sostituito da coefficienti stimati via regressione logistica penalizzata (LASSO/elastic-net) con bootstrap dopo raccolta prospettica di ≥200 pazienti (Studio APS-CPSP, Fase 1). Tutte le variabili sono raccolte come valori continui per la derivazione statistica futura.
+                    ⚠️ Strumento di supporto decisionale. Framework basato su: CPSP Assessment Pack Preop/Postop 2026; P4-Prevoque PERISCOPE Trial 2025 (AUC=0.81); Cohort prospettica multicentrica n=960 (AUC=0.748); BJA/AoA Consensus 2024; IASP 2021; PROSPECT (ESRA) 2020–2026; Carley et al. Anesthesiology 2021; Doleman et al. BJA 2023; SSAPM Swiss Med Wkly 2026. Scale validate: PCS-I (Sullivan 1995/Monticone et al., cutoff ≥30/52); PASS-20 (McCracken 2002, cutoff ≥30/80); CSI (Mayer 2012/Neblett 2013, cutoff ≥40/100); Distress Thermometer (cutoff ≥7). Nota: gabapentinoidi e duloxetina non raccomandati di routine in perioperatorio (PROSPECT; Carley 2021). Tutti i farmaci sono off-label per uso perioperatorio preventivo. Non sostituisce la valutazione clinica individuale. — Nota metodologica: i coefficienti attuali sono clinicamente derivati (placeholder). Il modello sarà sostituito da coefficienti stimati via regressione logistica penalizzata (LASSO/elastic-net) con bootstrap dopo raccolta prospettica di ≥200 pazienti (Studio APS-CPSP, Fase 1). Tutte le variabili sono raccolte come valori continui per la derivazione statistica futura.
                   </div>
                 </div>
               </div>
@@ -6085,13 +6091,13 @@ function InterventionFormPage() {
     pain_protocol: string; pain_protocols: string[]; regional_blocks: string;
     regional_drugs: string; postop_drugs: string; surgeon: string;
     anesthesiologist_name: string; nrs_alert_threshold: string;
-    intervention_end_time: string; notes: string;
+    intervention_end_time: string; duration_minutes: string; notes: string;
   }>({
     intervention_name: '', intervention_subtype: '', category: 'ortopedico',
     anesthesia_type: '', anesthesia_types: [], anesthesia_drugs: '', pain_protocol: '',
     pain_protocols: [], regional_blocks: '', regional_drugs: '', postop_drugs: '',
     surgeon: '', anesthesiologist_name: '', nrs_alert_threshold: '6',
-    intervention_end_time: getNowStr(), notes: '',
+    intervention_end_time: getNowStr(), duration_minutes: '', notes: '',
   });
   const [saving, setSaving] = useState(false);
   const set = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
@@ -6190,6 +6196,7 @@ function InterventionFormPage() {
       anesthesiologist_name: data.anesthesiologist_name || '',
       nrs_alert_threshold: data.nrs_alert_threshold?.toString() || '6',
       intervention_end_time: data.intervention_end_time ? data.intervention_end_time.slice(0,16) : getNowStr(),
+      duration_minutes: data.duration_minutes != null ? String(data.duration_minutes) : '',
       notes: data.notes || '',
     });
     // Load structured anesthesia fields (backward compat mapping)
@@ -6279,6 +6286,7 @@ function InterventionFormPage() {
       anesthesiologist_name: form.anesthesiologist_name || null,
       nrs_alert_threshold: parseInt(form.nrs_alert_threshold) || 6,
       intervention_end_time: form.intervention_end_time ? new Date(form.intervention_end_time).toISOString() : null,
+      duration_minutes: form.duration_minutes ? parseInt(form.duration_minutes) || null : null,
       notes: form.notes || null,
       // Nuovi campi strutturati — richiedono migrazione DB (salvati con || null per compatibilità)
       local_anesthetic_details: localAnestheticDetails.length > 0 ? JSON.stringify(localAnestheticDetails) : null,
@@ -6366,6 +6374,10 @@ function InterventionFormPage() {
             <Field label="Fine Intervento">
               <input type="datetime-local" value={form.intervention_end_time} onChange={e => set('intervention_end_time', e.target.value)} style={inp} />
               <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>NRS programmati a +6h, +12h, +24h, +48h</div>
+            </Field>
+            <Field label="Durata intervento (min)">
+              <input type="number" min="0" max="1440" value={form.duration_minutes} onChange={e => set('duration_minutes', e.target.value)} style={inp} placeholder="es. 90" />
+              <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>Usata nei dati intraoperatori CPSP</div>
             </Field>
             <Field label="Soglia Alert NRS">
               <input type="number" min="0" max="10" value={form.nrs_alert_threshold} onChange={e => set('nrs_alert_threshold', e.target.value)} style={inp} />
