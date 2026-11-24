@@ -1248,6 +1248,20 @@ function getRecs(level: string, pcs: number, pass: number, csi: number, opioids:
 
 // calcDynamicRisk imported from ./utils/cpspRisk
 
+// Functional Activity Score (Scott & McDonald, 2008): quanto il dolore limita l'attività funzionale valutata
+const FAS_DESC: Record<string, string> = {
+  A: 'Nessuna limitazione: esegue l\'attività senza limitazioni dovute al dolore',
+  B: 'Limitazione lieve: esegue l\'attività ma con dolore moderato-severo',
+  C: 'Limitazione significativa: non riesce a completare l\'attività per dolore o effetti collaterali',
+};
+function FasHint({ value }: { value: string }) {
+  return (
+    <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4, lineHeight: 1.4 }}>
+      {value ? <><b>FAS {value}</b> · {FAS_DESC[value]}</> : 'Valuta la capacità di eseguire l\'attività (es. camminare, tossire): A nessuna limitazione · B lieve · C significativa'}
+    </div>
+  );
+}
+
 function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, profile: any, patient?: any, phase?: 'pre'|'ric'|'post' }) {
   const showPre = !phase || phase === 'pre';
   const showRic = !phase || phase === 'ric';
@@ -2330,9 +2344,10 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
                   <button key={v} onClick={() => setFasScore(fasScore === v ? '' : v)}
                     style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: `1.5px solid ${fasScore === v ? c : T.border}`,
                       backgroundColor: fasScore === v ? `${c}22` : '#fff', color: fasScore === v ? c : T.textMuted,
-                      fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{v}</button>
+                      fontWeight: 700, fontSize: 13, cursor: 'pointer' }} title={FAS_DESC[v]}>{v}</button>
                 ))}
               </div>
+              <FasHint value={fasScore} />
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -3330,7 +3345,7 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
                   <span style={{ backgroundColor: T.primaryLight, color: T.primary, borderRadius: 14, padding: '3px 12px', fontWeight: 700, fontSize: 13 }}>{f.followup_months === 0.5 ? '2 sett.' : f.followup_months === 1 ? '1 mese' : `${f.followup_months}m`}</span>
                   {f.cpsp_confirmed && <span style={{ backgroundColor: T.dangerLight, color: T.danger, borderRadius: 14, padding: '3px 10px', fontWeight: 600, fontSize: 12 }}>CPSP ✓</span>}
                   {f.dn4_neuropathic && <span style={{ backgroundColor: T.warningLight, color: T.warning, borderRadius: 14, padding: '3px 10px', fontWeight: 600, fontSize: 12 }}>Neuropatico</span>}
-                  {f.fas_score && <span style={{ backgroundColor: f.fas_score === 'C' ? T.dangerLight : f.fas_score === 'B' ? T.warningLight : T.successLight, color: f.fas_score === 'C' ? T.danger : f.fas_score === 'B' ? T.warning : T.success, borderRadius: 14, padding: '3px 10px', fontWeight: 600, fontSize: 12 }}>FAS-{f.fas_score}</span>}
+                  {f.fas_score && <span title={FAS_DESC[f.fas_score]} style={{ backgroundColor: f.fas_score === 'C' ? T.dangerLight : f.fas_score === 'B' ? T.warningLight : T.successLight, color: f.fas_score === 'C' ? T.danger : f.fas_score === 'B' ? T.warning : T.success, borderRadius: 14, padding: '3px 10px', fontWeight: 600, fontSize: 12 }}>FAS-{f.fas_score}</span>}
                   {f.referral_pain_center && <span style={{ backgroundColor: T.accentLight, color: T.accent, borderRadius: 14, padding: '3px 10px', fontWeight: 600, fontSize: 12 }}>→ Centro dolore</span>}
                   <span style={{ fontSize: 11, color: T.textLight }}>{f.followup_date ? format(parseISO(f.followup_date), 'dd/MM/yy') : format(parseISO(f.created_at), 'dd/MM/yy')}</span>
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
@@ -4161,7 +4176,7 @@ function PatientDetailPage() {
                         <label style={lbl}>FAS</label>
                         <div style={{ display: 'flex', gap: 6 }}>
                           {['A', 'B', 'C'].map(v => (
-                            <button key={v} onClick={() => setEditNrsFas(editNrsFas === v ? '' : v)}
+                            <button key={v} title={FAS_DESC[v]} onClick={() => setEditNrsFas(editNrsFas === v ? '' : v)}
                               style={{ flex: 1, padding: '6px 0', borderRadius: 8, cursor: 'pointer',
                                 border: `2px solid ${editNrsFas === v ? '#0A6E6E' : '#E2E8F0'}`,
                                 backgroundColor: editNrsFas === v ? '#E6F4F4' : '#fff',
@@ -4170,6 +4185,7 @@ function PatientDetailPage() {
                             </button>
                           ))}
                         </div>
+                        <FasHint value={editNrsFas} />
                       </div>
                     </div>
                     <div style={{ marginTop: 10 }}>
