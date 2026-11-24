@@ -1165,13 +1165,101 @@ const GAD7_ITEMS = [
 
 const RISK_COLORS: Record<string, string> = { basso: T.success, moderato: T.warning, alto: T.danger, molto_alto: '#7B0000' };
 const RISK_LABELS: Record<string, string> = { basso: 'Basso', moderato: 'Moderato', alto: 'Alto', molto_alto: 'Molto Alto' };
-const PROSPECT_BUNDLES: Record<string, { items: string[], source: string }> = {
-  protesi_anca: { items: ['Paracetamolo 1g x4 + COX-2 inibitore + Desametasone 8–10 mg IV', 'Fascia Iliaca block o LIA (Local Infiltration Analgesia)', '⚠️ Gabapentinoidi NON raccomandati routinariamente per THA'], source: 'PROSPECT Guidelines 2021, Livello A' },
-  protesi_ginocchio: { items: ['Paracetamolo 1g x4 + COX-2 inibitore + Desametasone 8–10 mg IV', 'ACB (Adductor Canal Block) o LIA', '⚠️ Gabapentinoidi NON raccomandati routinariamente per TKA'], source: 'PROSPECT Guidelines 2021, Livello A' },
-  toracotomia: { items: ['Epidurale toracica o blocco paravertebrale (prima scelta)', 'Alternative: Erector Spinae Block (OR 0.76 per CPSP) o blocco intercostale', 'Preferire VATS quando possibile (OR 0.54 per CPSP vs open)'], source: 'PROSPECT 2023 / Anaesthesia 2024, Livello A' },
-  mammaria: { items: ['Paracetamolo + NSAID + Desametasone IV', 'Blocco paravertebrale (PVB) o PECS block'], source: 'PROSPECT 2020, Livello A' },
-  ernioplastica: { items: ['Paracetamolo + NSAID multimodale', 'TAP block o blocco del nervo ileoinguinale/ilieoipogastrico', 'Gabapentin 300 mg pre-op (evidenza per neuralgia inguinale cronica)'], source: 'PROSPECT 2021, Livello A' },
-  spinale: { items: ['ERECTOR Spinae Plane Block bilaterale', 'Ketamina 0.3 mg/kg/h intraoperatoria (forte evidenza per chirurgia spinale)', 'Paracetamolo + COX-2 inibitore regolare'], source: 'PROSPECT 2023, Livello B' },
+// Bundle PROSPECT (ESRA) — aggiornati a novembre 2026. Chiavi web + alias iOS.
+type ProspectBundle = { title: string; rec: string[]; notRec: string[]; note?: string; source: string };
+const PB_THA: ProspectBundle = {
+  title: 'Artroprotesi d\'anca (THA)',
+  rec: [
+    'Paracetamolo + FANS o COX-2 inibitore pre/intraop, proseguiti nel postop (salvo controindicazioni)',
+    'Desametasone EV dose singola fino a 10 mg',
+    'Blocco single-shot: fascia iliaca SOVRAINGUINALE (approccio posterolaterale) oppure PENG preoperatorio',
+    'LIA solo se i blocchi non sono fattibili o sono controindicati — non associarla ai blocchi',
+    'Morfina intratecale ≤0,1 mg solo con anestesia spinale e paziente ricoverato',
+    'Oppioidi solo come rescue',
+  ],
+  notRec: ['Fascia iliaca infrainguinale', 'PENG postoperatorio', 'ESP, quadrato dei lombi, plesso lombare/psoas', 'Gabapentinoidi', 'Duloxetina', 'Desametasone postop, metilprednisolone', 'Dexmedetomidina EV'],
+  source: 'PROSPECT THA 2026 — Carella et al., Anaesthesia 2026 (doi 10.1111/anae.70299)',
+};
+const PB_TKA: ProspectBundle = {
+  title: 'Artroprotesi di ginocchio (TKA)',
+  rec: [
+    'Paracetamolo + FANS o COX-2 inibitore pre/intraop e postop',
+    'ACB single-shot preoperatorio + LIA intraoperatoria (combinazione preferita)',
+    'Desametasone EV dose singola intraop (≥10 mg)',
+    'Morfina intratecale 100 µg solo se ricoverato, in spinale, e ACB + LIA non possibili',
+    'Oppioidi solo come rescue',
+  ],
+  notRec: ['Gabapentinoidi', 'Ketamina', 'Dexmedetomidina', 'Analgesia epidurale', 'Blocco femorale', 'Blocco sciatico', 'LIA continua / infusione intra-articolare'],
+  source: 'PROSPECT TKA — Lavand\'homme et al., Eur J Anaesthesiol 2022 (revisione 2014–2020)',
+};
+const PB_SPINE: ProspectBundle = {
+  title: 'Chirurgia spinale complessa (strumentata, ≥3 livelli, scoliosi)',
+  rec: [
+    'Paracetamolo + FANS o COX-2 inibitore pre/intraop e postop (FANS a basse dosi e breve durata: non compromettono la fusione)',
+    'Ketamina EV a basse dosi solo intraoperatoria, soprattutto se dolore cronico / uso di oppioidi — non proseguire nel postop',
+    'Epidurale postoperatoria con AL a bassa concentrazione, catetere posizionato dal chirurgo a vista — valutazione caso per caso',
+    'Oppioidi solo come rescue',
+  ],
+  notRec: ['Gabapentinoidi', 'Metadone EV', 'ESP block, TLIP block', 'Oppioidi intratecali', 'Infiltrazione della ferita', 'Desametasone / glucocorticoidi EV', 'Lidocaina, dexmedetomidina, magnesio EV'],
+  note: 'ESP block: non raccomandato nel 2020 per evidenza procedura-specifica limitata; non esiste ancora un aggiornamento PROSPECT che includa gli studi successivi.',
+  source: 'PROSPECT chirurgia spinale complessa — Waelkens et al., Eur J Anaesthesiol 2021',
+};
+const PB_LAMINECTOMY: ProspectBundle = {
+  title: 'Laminectomia lombare 1–2 livelli',
+  rec: [
+    'Paracetamolo + FANS o COX-2 inibitore pre/intraop e postop',
+    'Instillazione o infiltrazione della ferita con AL prima della chiusura',
+    'Oppioidi solo come rescue',
+  ],
+  notRec: ['Gabapentinoidi e oppioidi intratecali (efficaci ma con rischi rilevanti)', 'Blocco paravertebrale', 'Infiltrazione perineurale chirurgica', 'Fentanil transdermico'],
+  source: 'PROSPECT laminectomia — Eur Spine J 2021 (revisione 2020)',
+};
+const PB_THORACOTOMY: ProspectBundle = {
+  title: 'Toracotomia',
+  rec: [
+    'Paracetamolo + FANS o COX-2 inibitore pre/intraop e postop',
+    'Prima scelta (equivalenti): epidurale toracica (AL + oppioide lipofilo, al livello dell\'incisione) oppure paravertebrale con catetere',
+    'Alternative se non fattibili: ESP, blocco romboide-intercostale o intercostale',
+    'Agopuntura o crioanalgesia se nessuna tecnica regionale è possibile',
+    'Oppioidi solo come rescue',
+  ],
+  notRec: ['Gabapentinoidi', 'Ketamina EV', 'Desametasone EV', 'Dexmedetomidina (EV o come adiuvante)', 'Magnesio', 'Blocco del serrato anteriore', 'Blocco del nervo frenico'],
+  source: 'PROSPECT toracotomia — Lemoine et al., Anaesthesia 2026 (doi 10.1111/anae.70123)',
+};
+const PB_BREAST: ProspectBundle = {
+  title: 'Chirurgia oncologica maggiore della mammella',
+  rec: [
+    'Paracetamolo + FANS o COX-2 inibitore pre/intraop e postop',
+    'Desametasone EV pre o intraoperatorio',
+    'Un blocco single-shot (considerati equivalenti): paravertebrale toracico, PECS (IPP/PSP), serrato anteriore superficiale o profondo, ESP, oppure LIA',
+    'LIA aggiuntiva solo per aree non coperte dal blocco, entro la dose massima di AL',
+    'Fisioterapia pre e postoperatoria',
+    'Oppioidi solo come rescue',
+  ],
+  notRec: ['Gabapentin', 'Duloxetina', 'Ketamina, lidocaina, magnesio, dexmedetomidina EV', 'Adiuvanti perineurali (desametasone, dexmedetomidina, ecc.)', 'Tecniche continue / cateteri di ferita'],
+  source: 'PROSPECT mammella oncologica — Desai et al., Anaesthesia 2026 (doi 10.1111/anae.70313)',
+};
+const PB_HERNIA: ProspectBundle = {
+  title: 'Ernioplastica inguinale aperta',
+  rec: [
+    'Paracetamolo + FANS o COX-2 inibitore pre/intraop e postop',
+    'Desametasone EV dose singola',
+    'Blocco ileoinguinale/ileoipogastrico o TAP e/o infiltrazione con AL',
+    'Field block come unica anestesia o in aggiunta all\'anestesia generale',
+    'Tecnica con rete',
+    'Oppioidi solo come rescue',
+  ],
+  notRec: ['Gabapentinoidi', 'Clonidina', 'Epidurale, paravertebrale', 'Lidocaina EV', 'TENS', 'Neurectomia, crioanalgesia'],
+  source: 'PROSPECT ernioplastica inguinale aperta (revisione 2019)',
+};
+const PROSPECT_BUNDLES: Record<string, ProspectBundle> = {
+  protesi_anca: PB_THA, THA: PB_THA,
+  protesi_ginocchio: PB_TKA, TKA: PB_TKA,
+  spinale: PB_SPINE, VERTEBRALE_FUSIONE: PB_SPINE,
+  VERTEBRALE_DECOMPRESSIONE: PB_LAMINECTOMY,
+  toracotomia: PB_THORACOTOMY,
+  mammaria: PB_BREAST,
+  ernioplastica: PB_HERNIA,
 };
 type Rec = { icon: string; cat: string; text: string; src: string; ev: 'A'|'B'|'C'|'expert' };
 const EV_STYLE: Record<string, { bg: string; color: string }> = {
@@ -1189,7 +1277,7 @@ function getRecs(level: string, pcs: number, pass: number, csi: number, opioids:
   } else if (level === 'moderato') {
     recs.push({ icon: '💊', cat: 'Farmacologico', text: 'Pregabalin 75-150mg x2/die: iniziare 2h prima dell\'intervento, continuare 7-14 giorni post-op (riduzione CPSP OR=0.09 vs placebo in meta-analisi Cochrane 2023)', src: 'Cochrane 2023', ev: 'A' });
     recs.push({ icon: '💊', cat: 'Farmacologico', text: 'Considerare Gabapentin 300mg x3/die come alternativa al pregabalin (evidenza simile)', src: 'Cochrane 2023', ev: 'A' });
-    recs.push({ icon: '🦷', cat: 'Locoregionale', text: 'Anestesia regionale tecnica-specifica raccomandata: PENG block + ACB per anca/ginocchio, ESPB per colonna/spalla, TAP block per addome', src: 'PROSPECT Guidelines 2023', ev: 'A' });
+    recs.push({ icon: '🦷', cat: 'Locoregionale', text: 'Anestesia regionale procedura-specifica secondo PROSPECT: anca → fascia iliaca sovrainguinale o PENG preop; ginocchio → ACB + LIA; ernia → ileoinguinale/TAP; mammella → PVB/PECS/SAP/ESP; toracotomia → epidurale o paravertebrale (vedi bundle sotto)', src: 'PROSPECT ESRA 2020–2026', ev: 'A' });
     recs.push({ icon: '📋', cat: 'TPS', text: 'Segnalazione al Transitional Pain Service per follow-up strutturato', src: 'Expert consensus', ev: 'expert' });
     recs.push({ icon: '📅', cat: 'Follow-up', text: 'Follow-up a 3 mesi con NRS + BPI', src: 'IASP 2021', ev: 'B' });
   } else if (level === 'alto') {
@@ -2834,15 +2922,19 @@ function CPSPTab({ patientId, profile, patient, phase }: { patientId: string, pr
                   if (!bundle) return null;
                   return (
                     <div style={{ marginTop: 10, backgroundColor: '#F0FDF4', borderRadius: 10, padding: '10px 14px', border: '1px solid #BBF7D0' }}>
-                      <div style={{ fontWeight: 700, fontSize: 12, color: '#15803D', marginBottom: 6 }}>🔧 Bundle PROSPECT Procedure-Specific</div>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: '#15803D', marginBottom: 6 }}>🔧 Bundle PROSPECT · {bundle.title}</div>
                       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
-                        {bundle.items.map((item, i) => (
+                        {bundle.rec.map((item, i) => (
                           <div key={i} style={{ fontSize: 12, color: '#166534', display: 'flex', gap: 6 }}>
-                            <span style={{ flexShrink: 0 }}>•</span>
+                            <span style={{ flexShrink: 0 }}>✓</span>
                             <span>{item}</span>
                           </div>
                         ))}
                       </div>
+                      <div style={{ fontSize: 11, color: '#991B1B', marginTop: 8, lineHeight: 1.45 }}>
+                        <b>Non raccomandati:</b> {bundle.notRec.join(' · ')}
+                      </div>
+                      {bundle.note && <div style={{ fontSize: 11, color: '#92400E', marginTop: 6, lineHeight: 1.45 }}>ℹ️ {bundle.note}</div>}
                       <div style={{ fontSize: 10, color: '#16A34A', marginTop: 6, fontStyle: 'italic' }}>{bundle.source}</div>
                     </div>
                   );
