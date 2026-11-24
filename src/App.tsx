@@ -1165,7 +1165,7 @@ const GAD7_ITEMS = [
 
 const RISK_COLORS: Record<string, string> = { basso: T.success, moderato: T.warning, alto: T.danger, molto_alto: '#7B0000' };
 const RISK_LABELS: Record<string, string> = { basso: 'Basso', moderato: 'Moderato', alto: 'Alto', molto_alto: 'Molto Alto' };
-// Bundle PROSPECT (ESRA) — aggiornati a novembre 2026. Chiavi web + alias iOS.
+// Bundle PROSPECT (ESRA) — aggiornati a novembre 2026. Stesso testo in aps-web e AcutePainService.
 type ProspectBundle = { title: string; rec: string[]; notRec: string[]; note?: string; source: string };
 const PB_THA: ProspectBundle = {
   title: 'Artroprotesi d\'anca (THA)',
@@ -1214,6 +1214,32 @@ const PB_LAMINECTOMY: ProspectBundle = {
   notRec: ['Gabapentinoidi e oppioidi intratecali (efficaci ma con rischi rilevanti)', 'Blocco paravertebrale', 'Infiltrazione perineurale chirurgica', 'Fentanil transdermico'],
   source: 'PROSPECT laminectomia — Eur Spine J 2021 (revisione 2020)',
 };
+const PB_ROTATOR: ProspectBundle = {
+  title: 'Riparazione della cuffia dei rotatori',
+  rec: [
+    'Tecnica artroscopica quando possibile',
+    'Paracetamolo + FANS o COX-2 inibitore pre/intraop e postop',
+    'Prima scelta: blocco interscalenico (continuo o single-shot)',
+    'Alternativa: blocco del soprascapolare ± nervo ascellare',
+    'Desametasone EV',
+    'Oppioidi solo come rescue',
+  ],
+  notRec: [],
+  note: 'Bundle riferito alla riparazione della cuffia dei rotatori; per altre artroscopie di spalla manca un bundle PROSPECT specifico.',
+  source: 'PROSPECT cuffia dei rotatori — Toma et al., Anaesthesia 2019',
+};
+const PB_HIPFX: ProspectBundle = {
+  title: 'Frattura del femore prossimale',
+  rec: [
+    'Paracetamolo + FANS o COX-2 inibitore pre/intraop e postop (salvo controindicazioni)',
+    'Blocco femorale (anche 3-in-1) o fascia iliaca single-shot, secondo esperienza locale; catetere solo se attesa chirurgica prolungata',
+    'Anestesia spinale o generale scelta su criteri non legati al dolore',
+    'Oppioidi solo come rescue',
+  ],
+  notRec: ['PENG preoperatorio', 'Buprenorfina transdermica', 'LIA', 'Epidurale e adiuvanti epidurali', 'Dexmedetomidina e clonidina (EV o come adiuvanti)', 'TENS, crioterapia'],
+  note: 'Valido per la frattura di femore prossimale; per altre fratture dell\'arto inferiore manca un bundle PROSPECT specifico.',
+  source: 'PROSPECT frattura di femore — Pissens et al., Acta Anaesthesiol Belg 2024',
+};
 const PB_THORACOTOMY: ProspectBundle = {
   title: 'Toracotomia',
   rec: [
@@ -1252,11 +1278,14 @@ const PB_HERNIA: ProspectBundle = {
   notRec: ['Gabapentinoidi', 'Clonidina', 'Epidurale, paravertebrale', 'Lidocaina EV', 'TENS', 'Neurectomia, crioanalgesia'],
   source: 'PROSPECT ernioplastica inguinale aperta (revisione 2019)',
 };
+// Chiavi web + iOS (il database è condiviso: una valutazione creata su una piattaforma va letta anche sull'altra)
 const PROSPECT_BUNDLES: Record<string, ProspectBundle> = {
   protesi_anca: PB_THA, THA: PB_THA,
   protesi_ginocchio: PB_TKA, TKA: PB_TKA,
   spinale: PB_SPINE, VERTEBRALE_FUSIONE: PB_SPINE,
   VERTEBRALE_DECOMPRESSIONE: PB_LAMINECTOMY,
+  ARTR_SPALLA: PB_ROTATOR,
+  FRATTURA_INF: PB_HIPFX, frattura_arto: PB_HIPFX,
   toracotomia: PB_THORACOTOMY,
   mammaria: PB_BREAST,
   ernioplastica: PB_HERNIA,
