@@ -1,0 +1,42 @@
+# Evita che il progetto Supabase (piano gratuito) vada in pausa
+# dopo ~7 giorni senza attività. Ogni 3 giorni esegue una SELECT
+# leggera sul database usando la chiave pubblica "anon".
+# La tabella `wards` è protetta da RLS: senza login la risposta è
+# sempre vuota, quindi nessun dato clinico viene letto o loggato.
+
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: '17 6 */3 * *'   # 06:17 UTC, ogni 3 giorni
+  workflow_dispatch:          # avvio manuale dal tab "Actions"
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: src/services/supabase.ts
+          sparse-checkout-cone-mode: false
+
+      - name: Ping database
+        run: |
+          URL=$(grep -oE "https://[a-z0-9]+\.supabase\.co" src/services/supabase.ts | head -1)
+          KEY=$(grep -oE "eyJ[A-Za-z0-9._-]+" src/services/supabase.ts | head -1)
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "::error::URL o chiave anon non trovati in src/services/supabase.ts"
+            exit 1
+          fi
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
+            "$URL/rest/v1/wards?select=id&limit=1" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          echo "HTTP $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Ping fallito (HTTP $STATUS) — il progetto potrebbe essere già in pausa"
+            exit 1
+          fi
